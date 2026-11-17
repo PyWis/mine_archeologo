@@ -1,0 +1,1677 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mine Archeologo – missioni di scavo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#2b1d12;
+  --ui:#c6c6c6; --ui-hi:#ffffff; --ui-lo:#555555; --ui-text:#3f3f3f;
+  --slot:#8b8b8b; --slot-hi:#ffffff; --slot-lo:#373737;
+  --btn:#727272; --btn-hi:#a8a8a8; --btn-lo:#3c3c3c;
+  --btn-hover:#7280c8; --btn-hover-hi:#b9c2f0; --btn-hover-lo:#36407a;
+  --gold:#ffd83d; --yellow:#ffff55; --aqua:#55ffff; --green:#55ff55; --red:#ff5555;
+  --tip:#100010; --tip-border:#3a1490;
+  color-scheme:dark;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after{ box-sizing:border-box; }
+[hidden]{ display:none !important; }
+html{ height:100%; }
+body{
+  margin:0; min-height:100%; background-color:var(--bg); color:#fff;
+  font-family:'Pixelify Sans','Trebuchet MS',sans-serif; font-size:20px; line-height:1.3;
+  image-rendering:pixelated; background-size:auto, 64px 64px;
+}
+.wrap{ max-width:900px; margin:0 auto; padding:16px 14px 28px; }
+.screen{
+  position:relative; min-height:580px; padding:14px; overflow:hidden;
+  background:rgba(0,0,0,.30); border:3px solid #000; box-shadow:inset 0 0 0 3px rgba(255,255,255,.07);
+}
+.px{ font-family:'Press Start 2P','Courier New',monospace; line-height:1.5; font-weight:normal; }
+canvas, img.sp{ image-rendering:pixelated; image-rendering:crisp-edges; }
+.shadow{ text-shadow:2px 2px 0 #3f3f3f; }
+
+/* ---------- pulsanti a blocchi ---------- */
+button{
+  font-family:inherit; font-size:19px; line-height:1.2; color:#fff; text-shadow:2px 2px 0 #3f3f3f;
+  background:var(--btn); border:2px solid #000; border-radius:0; padding:9px 14px 10px; cursor:pointer;
+  box-shadow:inset 2px 2px 0 var(--btn-hi), inset -2px -3px 0 var(--btn-lo);
+}
+button:hover{ background:var(--btn-hover); color:#ffffa0; box-shadow:inset 2px 2px 0 var(--btn-hover-hi), inset -2px -3px 0 var(--btn-hover-lo); }
+button:active{ box-shadow:inset 2px 3px 0 var(--btn-lo), inset -2px -2px 0 var(--btn-hi); }
+button:disabled{ background:#2c2c2c; color:#9a9a9a; text-shadow:none; cursor:not-allowed; box-shadow:inset 2px 2px 0 #3a3a3a, inset -2px -2px 0 #1a1a1a; }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible{ outline:3px solid var(--yellow); outline-offset:2px; }
+button.big{ font-size:23px; padding:12px 24px 13px; }
+button.small{ font-size:15px; padding:5px 9px 6px; }
+button.green, .opts button.ok, .stack button.done{ background:#3f8a2e; box-shadow:inset 2px 2px 0 #7fd25e, inset -2px -3px 0 #1f4a16; color:#fff; }
+.opts button.no{ background:#9a3a2e; box-shadow:inset 2px 2px 0 #d97a6a, inset -2px -3px 0 #4a1610; color:#fff; }
+
+/* ---------- pannelli stile inventario ---------- */
+.panel{
+  background:var(--ui); color:var(--ui-text); border:2px solid #000; padding:12px 14px;
+  box-shadow:inset 3px 3px 0 var(--ui-hi), inset -3px -3px 0 var(--ui-lo);
+}
+.panel h2{ font-family:'Press Start 2P','Courier New',monospace; font-size:11px; color:var(--ui-text); margin:0 0 10px; font-weight:normal; line-height:1.5; }
+.slot{ background:var(--slot); box-shadow:inset 2px 2px 0 var(--slot-lo), inset -2px -2px 0 var(--slot-hi); }
+
+/* ---------- HUD ---------- */
+.hud{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+.hud .info{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.hud .mname{ font-size:10px; color:var(--yellow); text-shadow:2px 2px 0 #3f3f00; }
+.hud .day{ font-size:20px; text-shadow:2px 2px 0 #3f3f3f; }
+.hotbar{ display:flex; flex-wrap:wrap; padding:3px; background:#000; border:2px solid #555; }
+.hotbar .slot{ width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
+.hotbar img{ width:30px; height:30px; opacity:.28; filter:grayscale(1) brightness(.7); }
+.hotbar img.got{ opacity:1; filter:drop-shadow(2px 2px 0 rgba(0,0,0,.45)); animation:pop .4s; }
+@keyframes pop{ 50%{ transform:scale(1.35); } }
+.hud .btns{ display:flex; gap:8px; }
+
+/* ---------- dialogo (tooltip) ---------- */
+.dialog{
+  margin-top:14px; background:rgba(16,0,16,.94); border:3px solid var(--tip-border); outline:3px solid var(--tip);
+  display:grid; grid-template-columns:72px 1fr; gap:12px; padding:10px 12px; min-height:114px; align-items:start;
+}
+.dialog .face{ width:72px; height:98px; display:flex; align-items:center; justify-content:center; }
+.dialog .face canvas{ width:48px; height:72px; }
+.dialog .who{ font-size:10px; color:var(--yellow); margin-bottom:6px; }
+.dialog .txt{ font-size:22px; min-height:58px; }
+.dialog .row{ display:flex; justify-content:flex-end; margin-top:6px; }
+
+/* ---------- caricamento ---------- */
+.loading{ min-height:470px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; text-align:center; }
+.loading .lt{ font-size:13px; text-shadow:2px 2px 0 #3f3f3f; }
+.loading .ls{ font-size:20px; color:#d0d0d0; min-height:26px; }
+.loadbar{ width:min(380px, 90%); height:14px; background:#000; border:2px solid #fff; }
+.loadbar span{ display:block; height:100%; width:0; background:var(--green); }
+
+/* ---------- titolo ---------- */
+.title{ text-align:center; }
+.pano-wrap{ position:relative; border:3px solid #000; }
+.pano{ width:100%; height:auto; aspect-ratio:320/120; display:block; }
+.logo{ position:absolute; left:0; right:0; top:7%; text-align:center; pointer-events:none; }
+.logo h1{
+  margin:0; font-size:clamp(20px, 5.4vw, 44px); color:transparent;
+  background:var(--logo-tex, #d0d0d0) 0 0/28px 28px; -webkit-background-clip:text; background-clip:text;
+  filter:drop-shadow(3px 0 0 #000) drop-shadow(-3px 0 0 #000) drop-shadow(0 3px 0 #000) drop-shadow(0 -3px 0 #000) drop-shadow(4px 5px 0 #3a3a3a);
+  letter-spacing:2px;
+}
+.splash{
+  position:absolute; right:5%; top:44%; color:var(--yellow); font-size:clamp(8px,1.7vw,13px);
+  text-shadow:2px 2px 0 #3f3f00; transform:rotate(-14deg); animation:splash .45s ease-in-out infinite alternate; pointer-events:none;
+}
+@keyframes splash{ to{ transform:rotate(-14deg) scale(1.12); } }
+.team-row{ display:flex; justify-content:center; gap:24px; margin:16px 0 8px; flex-wrap:wrap; }
+.team-row figure{ margin:0; text-align:center; }
+.team-row canvas{ width:60px; height:90px; display:block; margin:0 auto 6px; filter:drop-shadow(4px 4px 0 rgba(0,0,0,.45)); }
+.team-row figcaption{ font-size:18px; color:#e8e8e8; text-shadow:2px 2px 0 #3f3f3f; }
+.team-row figcaption b{ display:block; font-family:'Press Start 2P','Courier New',monospace; font-size:10px; color:var(--yellow); font-weight:normal; margin-bottom:3px; }
+.namebox{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center; margin:10px auto 4px; max-width:560px; }
+.namebox label{ font-size:22px; width:100%; text-shadow:2px 2px 0 #3f3f3f; }
+.namebox input{
+  font-family:'Pixelify Sans','Trebuchet MS',sans-serif; font-size:24px; background:#000; color:#fff;
+  border:2px solid #a0a0a0; outline:2px solid #000; padding:6px 10px; width:min(280px, 100%);
+}
+
+/* ---------- menu missioni ---------- */
+.menu-h{ font-size:clamp(11px,2.2vw,15px); color:var(--yellow); text-shadow:2px 2px 0 #3f3f00; margin:4px 0 6px; text-align:center; }
+.menu-sub{ text-align:center; margin:0 0 14px; font-size:19px; text-shadow:2px 2px 0 #3f3f3f; }
+.missions{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; }
+button.mcard{
+  display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 6px 10px; text-align:center;
+  background:var(--ui); color:var(--ui-text); text-shadow:none;
+  box-shadow:inset 3px 3px 0 var(--ui-hi), inset -3px -3px 0 var(--ui-lo);
+}
+button.mcard:hover{ background:#dcdcdc; color:var(--ui-text); box-shadow:inset 3px 3px 0 #fff, inset -3px -3px 0 #777; outline:3px solid #fff; }
+.mcard canvas{ width:64px; height:64px; border:2px solid #000; }
+.mcard .mn{ font-family:'Press Start 2P','Courier New',monospace; font-size:8px; color:#6a6a6a; }
+.mcard .mt{ font-size:19px; font-weight:700; line-height:1.1; }
+.mcard .me{ font-size:15px; color:#5a5a5a; line-height:1.15; }
+.mstars{ font-size:20px; letter-spacing:2px; color:#8a8a8a; }
+.mstars b{ color:#e0a800; font-weight:normal; text-shadow:1px 1px 0 #6a4a00; }
+.timeline{ display:flex; align-items:center; gap:10px; margin:12px 4px 0; font-size:9px; color:#fff; text-shadow:2px 2px 0 #000; }
+.timeline i{ flex:1; height:6px; background:repeating-linear-gradient(90deg, #fff 0 12px, transparent 12px 18px); position:relative; }
+.timeline i::after{ content:""; position:absolute; right:-6px; top:-6px; border:9px solid transparent; border-left-color:#fff; border-right:0; }
+.menu-act{ display:flex; justify-content:center; margin-top:14px; }
+
+/* ---------- mappa ---------- */
+.map-wrap{ display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:14px; }
+.map-wrap canvas{ width:100%; height:auto; aspect-ratio:320/200; display:block; border:3px solid #000; }
+.side .stack{ display:flex; flex-direction:column; gap:8px; }
+.side .stack button{ text-align:left; }
+.zones{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.zones button{ flex:1 1 170px; }
+.hint{ font-size:18px; margin:10px 0 0; }
+
+/* ---------- griglia di scavo ---------- */
+.dig{ display:grid; grid-template-columns:minmax(0,1fr) 262px; gap:14px; align-items:start; }
+.frame{ display:grid; grid-template-columns:22px minmax(0,1fr); grid-template-rows:22px auto; gap:4px; }
+.frame .cols{ grid-column:2; display:grid; grid-template-columns:repeat(8, 1fr); text-align:center; font-family:'Press Start 2P','Courier New',monospace; font-size:10px; color:#fff; text-shadow:2px 2px 0 #000; align-items:end; }
+.frame .rows{ grid-row:2; display:grid; grid-template-rows:repeat(6, 1fr); font-family:'Press Start 2P','Courier New',monospace; font-size:10px; color:#fff; text-shadow:2px 2px 0 #000; align-items:center; text-align:center; }
+.frame .lbl-hidden{ visibility:hidden; }
+.area{ grid-column:2; grid-row:2; position:relative; display:grid; grid-template-columns:repeat(8, 1fr); background:#000; border:3px solid #000; }
+.cell, .cell:hover, .cell:active{
+  aspect-ratio:1; border:0; padding:0; margin:0; position:relative; border-radius:0; text-shadow:none;
+  background:var(--img, #5b8f2f) center/100% 100% no-repeat; image-rendering:pixelated;
+  box-shadow:var(--sh); display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.cell:hover{ filter:brightness(1.18); box-shadow:var(--sh), inset 0 0 0 2px rgba(255,255,255,.9); }
+.strung .cell{ outline:1px dashed rgba(255,255,255,.75); outline-offset:-1px; }
+.cell img{ width:68%; height:68%; filter:drop-shadow(2px 2px 0 rgba(0,0,0,.5)); position:relative; z-index:1; }
+.cell img.pending{ animation:blink .6s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+.cell .flag{ position:absolute; right:3px; top:3px; width:10px; height:10px; background:var(--gold); border:2px solid #000; z-index:1; }
+.cell.hint-on::after{ content:""; position:absolute; inset:2px; border:3px solid var(--aqua); pointer-events:none; animation:blink 1.2s steps(1) infinite; }
+.cell.target{ outline:3px solid var(--yellow) !important; outline-offset:-3px; }
+.cell.digging::before{ content:""; position:absolute; inset:3px; border:2px dashed var(--yellow); animation:blink .4s steps(1) infinite; pointer-events:none; }
+button.peg, button.peg:hover{
+  position:absolute; width:22px; height:22px; padding:0; z-index:3; background:#8a5a2b;
+  border:3px solid var(--yellow); box-shadow:inset -3px -3px 0 #5a3a1a; animation:blink .9s steps(1) infinite;
+}
+button.peg.set{ border-color:#000; animation:none; cursor:default; background:#a87a42; }
+.peg.tl{ left:-11px; top:-11px; } .peg.tr{ right:-11px; top:-11px; }
+.peg.bl{ left:-11px; bottom:-11px; } .peg.br{ right:-11px; bottom:-11px; }
+
+.legend{ margin-top:12px; display:grid; gap:6px; }
+.legend div{ display:grid; grid-template-columns:28px 1fr; gap:10px; align-items:center; font-size:18px; }
+.legend i{ display:block; width:28px; height:28px; border:2px solid #000; background-size:100% 100%; image-rendering:pixelated; }
+
+.cards{ display:flex; flex-direction:column; gap:8px; }
+.card{
+  background:var(--slot); box-shadow:inset 2px 2px 0 var(--slot-lo), inset -2px -2px 0 var(--slot-hi);
+  padding:8px; display:grid; grid-template-columns:40px 1fr; gap:8px; cursor:pointer; color:#fff; text-shadow:2px 2px 0 #3f3f3f;
+  border:3px solid transparent;
+}
+.card.sel{ border-color:#fff; outline:2px solid #000; }
+.card canvas{ width:36px; height:54px; }
+.card .nm{ font-family:'Press Start 2P','Courier New',monospace; font-size:10px; color:var(--yellow); }
+.card .fr{ font-size:16px; }
+.pips{ display:flex; gap:2px; margin:4px 0 6px; }
+.pips span{ width:12px; height:10px; background:#80ff20; border:1px solid #000; box-shadow:inset -2px -2px 0 #3a8a10; }
+.pips span.off{ background:#2a2a2a; box-shadow:none; }
+.card button{ font-size:14px; padding:4px 6px 5px; width:100%; }
+.howto{ font-size:17px; margin-top:10px; }
+
+/* ---------- finestre (schede) ---------- */
+.modal{ position:absolute; inset:0; background:rgba(0,0,0,.66); display:flex; align-items:center; justify-content:center; padding:14px; z-index:20; }
+.sheet{ width:min(580px, 100%); max-height:100%; overflow:auto; }
+.sheet h2{ font-size:12px; }
+.sheet p{ margin:6px 0; font-size:20px; }
+.sheet .q{ margin:12px 0 4px; font-size:20px; font-weight:700; }
+.opts{ display:flex; flex-wrap:wrap; gap:8px; }
+.fb{ min-height:26px; font-size:19px; color:#2a5a1a; font-weight:600; margin-top:6px; }
+.fact{ background:#e8e8e8; border:2px solid #8b8b8b; padding:6px 10px; font-size:18px !important; }
+.fact b{ color:#7a5a00; }
+.photo{ display:flex; gap:14px; align-items:center; margin:8px 0; }
+.photo .frame-img{ background:#fff; padding:8px 8px 22px; border:2px solid #000; position:relative; flex:none; }
+.photo .frame-img canvas{ width:80px; height:80px; display:block; background-size:100% 100%; image-rendering:pixelated; }
+.photo .frame-img.blank canvas{ filter:brightness(0); }
+.flash{ position:absolute; inset:0; background:#fff; animation:flash .5s forwards; pointer-events:none; }
+@keyframes flash{ to{ opacity:0; } }
+.sheet .act{ display:flex; justify-content:flex-end; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.diary li{ font-size:19px; margin:4px 0; }
+.diary ul{ padding-left:22px; margin:6px 0; }
+.sketches{ display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+.sketches img{ width:36px; height:36px; padding:3px; }
+.stars{ font-size:40px; color:#7a7a7a; letter-spacing:8px; margin:6px 0; text-shadow:3px 3px 0 #000; }
+.stars b{ color:var(--gold); font-weight:normal; }
+.shake{ animation:shake .3s; }
+@keyframes shake{ 25%{ transform:translateX(-5px);} 75%{ transform:translateX(5px);} }
+.brush{ position:relative; width:160px; height:160px; margin:8px auto; border:3px solid #000; }
+.brush canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+#bDirt{ cursor:crosshair; touch-action:none; }
+.bar{ height:14px; background:#000; margin:8px auto; width:160px; border:2px solid #000; }
+.bar span{ display:block; height:100%; width:0; background:#80ff20; }
+
+/* ---------- personaggi sulla griglia ---------- */
+.actors{ position:absolute; inset:0; pointer-events:none; z-index:2; }
+.actor{ position:absolute; width:12.5%; aspect-ratio:2/3; transform:translateY(-100%); }
+.actor img{ width:100%; height:100%; display:block; filter:drop-shadow(3px 3px 0 rgba(0,0,0,.4)); }
+.actor.sel::before{
+  content:""; position:absolute; left:50%; top:-14px; width:10px; height:10px; margin-left:-5px;
+  background:var(--green); border:2px solid #000; animation:bob 1s ease-in-out infinite;
+}
+@keyframes bob{ 50%{ top:-20px; } }
+.actor .tag{ position:absolute; left:50%; bottom:-14px; transform:translateX(-50%); background:rgba(0,0,0,.6); color:#fff;
+  font-family:'Press Start 2P','Courier New',monospace; font-size:7px; padding:2px 4px; white-space:nowrap; }
+.actor .bubble{ position:absolute; bottom:100%; left:50%; transform:translate(-50%, -18px); background:rgba(16,0,16,.92); color:#fff;
+  border:2px solid var(--tip-border); font-size:17px; padding:1px 7px; white-space:nowrap; z-index:5; }
+.actor .bubble.edge-l{ left:0; transform:translate(0, -18px); }
+.actor .bubble.edge-r{ left:auto; right:0; transform:translate(0, -18px); }
+.dirt{ position:absolute; width:6px; height:6px; animation:dirt .6s ease-out forwards; }
+@keyframes dirt{ 50%{ transform:translate(calc(var(--dx) * .6), var(--dy)); } 100%{ transform:translate(var(--dx), 8px); opacity:0; } }
+
+@media (max-width:760px){
+  .missions{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .missions .mcard:last-child{ grid-column:1 / -1; }
+}
+@media (max-width:680px){
+  .map-wrap, .dig{ grid-template-columns:1fr; }
+  .cards{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+  .card{ grid-template-columns:1fr; text-align:center; padding:6px; }
+  .card canvas{ margin:0 auto; }
+  .card .fr{ display:none; }
+  .pips{ justify-content:center; }
+  .screen{ padding:10px; }
+  body{ font-size:19px; }
+  .dialog{ grid-template-columns:50px 1fr; }
+  .dialog .face{ width:50px; height:72px; }
+  .dialog .face canvas{ width:36px; height:54px; }
+  .dialog .txt{ font-size:20px; }
+  .actor .tag{ display:none; }
+  .actor .bubble{ font-size:15px; }
+  .hotbar .slot{ width:34px; height:34px; }
+  .hotbar img{ width:26px; height:26px; }
+}
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="screen" id="screen">
+    <div class="hud" id="hud" hidden>
+      <div class="info">
+        <span class="mname px" id="mname"></span>
+        <span class="day" id="day">Giorno 1</span>
+      </div>
+      <div class="hotbar" id="slots" aria-label="Reperti trovati"></div>
+      <div class="btns">
+        <button class="small" id="menuBtn" type="button">Missioni</button>
+        <button class="small" id="soundBtn" type="button">Suono: sì</button>
+      </div>
+    </div>
+    <div id="view"></div>
+    <section class="dialog" id="dialog" hidden aria-live="polite">
+      <div class="face slot" id="face"></div>
+      <div>
+        <div class="who px" id="who"></div>
+        <div class="txt" id="txt"></div>
+        <div class="row"><button id="nextBtn" type="button" hidden>Avanti</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random() * n);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hash(s){ let h = 2166136261; for (const ch of s){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+/* =========================================================
+   SALVATAGGIO (solo comodità: il gioco funziona anche senza)
+   ========================================================= */
+const KEY = 'minearcheologo.v1';
+function loadProgress(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
+function saveProgress(){ try{ localStorage.setItem(KEY, JSON.stringify(progress)); }catch(e){} }
+const progress = loadProgress();
+progress.stars = progress.stars || {};
+
+/* =========================================================
+   TEXTURE A BLOCCHI (generate dal codice)
+   ========================================================= */
+const PAL = {
+  grass:['#5b8f2f','#6aa339','#4f7f28','#77b043','#5f9a33'],
+  grassDark:['#3f6f22','#4a7d28','#376320','#52862e'],
+  dirt:['#866043','#79553a','#96704f','#6b4a30'],
+  coarse:['#8a5a3a','#7a4e32','#9a6a48','#6a4028','#a07858'],
+  gravel:['#857f7b','#6f6a66','#9a9490','#5e5955','#a9a29c'],
+  clay:['#a0603e','#ae6a46','#94573a','#b87452'],
+  clayGray:['#8f97a6','#9ba3b2','#848c9a','#a6adbb'],
+  mud:['#5b4a32','#4e3f2a','#66543a','#463826'],
+  sand:['#dbd3a0','#e3dbb0','#d2c88f','#e8e0b8'],
+  redsand:['#c4783e','#b86c34','#d0864a','#a9602d'],
+  limestone:['#d9d6cc','#cfccc1','#e4e1d8','#c4c0b4'],
+  stone:['#7d7d7d','#8a8a8a','#6e6e6e','#959595'],
+  marble:['#e6e6e6','#f2f2f2','#d6d6d6','#cdcdd2'],
+  tufo:['#c9a35a','#bd9550','#d4b06a','#ae8646'],
+  deep:['#2e2e2e','#383838','#262626','#424242'],
+  water:['#3f76e4','#3a6bd1','#4a82ef','#3568cc'],
+  shallow:['#5c9ae8','#6aa8f0','#5590e0','#64a0ea'],
+  leaves:['#3f7a26','#356a1f','#4c8c2e','#2a5418'],
+  wheat:['#c9b24a','#b39a3a','#dcc85c','#a08a30'],
+  farm:['#6b4a30','#5a3e28','#7a5638'],
+  crop:['#4f8a2a','#5a9a30','#467a24'],
+  planks:['#b8945f','#a8844f','#9c7a48','#b08c58'],
+  roof:['#9a3a2e','#8a3228','#aa4636'],
+  road:['#8a8a7a','#7a7a6a','#9a9a8a','#727266'],
+  snow:['#f4f8ff','#e6eef8','#ffffff','#dde6f2'],
+  sandstone:['#d8c88a','#cdb977','#e2d49a','#c4ae6c'],
+  log:['#6b4f2a','#5a4022','#7a5a32'],
+  logo:['#d6d6d6','#c2c2c2','#e8e8e8','#b0b0b0']
+};
+function noiseFill(x, s, r, pal){
+  for (let j = 0; j < s; j++) for (let i = 0; i < s; i++){ x.fillStyle = pal[(r() * pal.length) | 0]; x.fillRect(i, j, 1, 1); }
+}
+const DRAW = {
+  grassSide(x, s, r){
+    noiseFill(x, s, r, PAL.dirt);
+    for (let i = 0; i < s; i++){
+      const d = Math.round(s * .22) + (r() < .5 ? 1 : 0) + (r() < .25 ? 1 : 0);
+      for (let j = 0; j < d; j++){ x.fillStyle = PAL.grass[(r() * PAL.grass.length) | 0]; x.fillRect(i, j, 1, 1); }
+    }
+  },
+  leaves(x, s, r){ noiseFill(x, s, r, PAL.leaves); x.fillStyle = '#1d3a10'; for (let k = 0; k < s * s * .12; k++) x.fillRect((r() * s) | 0, (r() * s) | 0, 1, 1); },
+  water(x, s, r){ noiseFill(x, s, r, PAL.water); x.fillStyle = '#86b4ff'; for (let k = 0; k < s / 4; k++) x.fillRect((r() * s) | 0, (r() * s) | 0, Math.max(2, s / 4 | 0), 1); },
+  shallow(x, s, r){ noiseFill(x, s, r, PAL.shallow); x.fillStyle = '#b4d6ff'; for (let k = 0; k < s / 4; k++) x.fillRect((r() * s) | 0, (r() * s) | 0, Math.max(2, s / 4 | 0), 1); },
+  reeds(x, s, r){ DRAW.shallow(x, s, r); for (let i = 1; i < s; i += 3){ const h = 2 + ((r() * s * .6) | 0); x.fillStyle = r() < .5 ? '#4f8a2a' : '#6a9a32'; x.fillRect(i, s - h, 1, h); } },
+  planks(x, s, r){
+    const b = Math.max(2, s / 4 | 0);
+    for (let j = 0; j < s; j++) for (let i = 0; i < s; i++){
+      x.fillStyle = j % b === b - 1 ? '#6b4f2a' : PAL.planks[((j / b | 0) + (r() < .15 ? 1 : 0)) % PAL.planks.length]; x.fillRect(i, j, 1, 1);
+    }
+    x.fillStyle = '#6b4f2a'; for (let row = 0; row < s / b; row++) x.fillRect((row * 5 + 3) % s, row * b, 1, b - 1);
+  },
+  roof(x, s, r){
+    const b = Math.max(2, s / 4 | 0); noiseFill(x, s, r, PAL.roof); x.fillStyle = '#5a1e16';
+    for (let j = 0; j < s; j += b){ x.fillRect(0, j + b - 1, s, 1); const off = (j / b) % 2 ? b : 0; for (let i = off; i < s; i += b * 2) x.fillRect(i, j, 1, b); }
+  },
+  wheat(x, s, r){
+    noiseFill(x, s, r, PAL.farm);
+    for (let i = 0; i < s; i += 2){ const h = s - ((r() * s * .35) | 0); for (let j = s - h; j < s; j++){ x.fillStyle = PAL.wheat[(r() * PAL.wheat.length) | 0]; x.fillRect(i, j, 1, 1); } }
+  },
+  farm(x, s, r){ for (let j = 0; j < s; j++) for (let i = 0; i < s; i++){ x.fillStyle = j % 3 === 0 ? PAL.farm[(r() * 3) | 0] : PAL.crop[(r() * 3) | 0]; x.fillRect(i, j, 1, 1); } },
+  palm(x, s, r){
+    noiseFill(x, s, r, PAL.sand); const c = s / 2 | 0;
+    x.fillStyle = '#3f7a26'; x.fillRect(c - 3, c - 1, 7, 2); x.fillRect(c - 1, c - 3, 2, 7);
+    x.fillStyle = '#2a5418'; x.fillRect(c - 3, c, 1, 1); x.fillRect(c + 3, c, 1, 1); x.fillStyle = '#6b4f2a'; x.fillRect(c - 1, c - 1, 2, 2);
+  },
+  tufo(x, s, r){ noiseFill(x, s, r, PAL.tufo); x.fillStyle = '#8a6a3a'; for (let k = 0; k < s * s * .05; k++) x.fillRect((r() * s) | 0, (r() * s) | 0, 2, 1); },
+  sandstone(x, s, r){ for (let j = 0; j < s; j++) for (let i = 0; i < s; i++){ x.fillStyle = PAL.sandstone[(((j / 2) | 0) + (r() < .3 ? 1 : 0)) % 4]; x.fillRect(i, j, 1, 1); } },
+  flat(x, s, r){ noiseFill(x, s, r, PAL.limestone); x.strokeStyle = '#9a968a'; x.lineWidth = 1; x.strokeRect(.5, .5, s - 1, s - 1); },
+  log(x, s, r){ for (let j = 0; j < s; j++) for (let i = 0; i < s; i++){ x.fillStyle = PAL.log[(i % 3 === 0 ? 0 : 1 + (r() < .4 ? 1 : 0))]; x.fillRect(i, j, 1, 1); } },
+  marble(x, s, r){ noiseFill(x, s, r, PAL.marble); x.fillStyle = '#b8b8c4'; let px = (r() * s) | 0; for (let j = 0; j < s; j++){ px += r() < .5 ? 1 : -1; x.fillRect(((px % s) + s) % s, j, 1, 1); } },
+  stone(x, s, r){ noiseFill(x, s, r, PAL.stone); x.fillStyle = '#5e5e5e'; for (let k = 0; k < s / 3; k++) x.fillRect((r() * s) | 0, (r() * s) | 0, 2, 1); }
+};
+function makeTex(key, size, seed){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'), r = mulberry32(seed);
+  (DRAW[key] || ((xx, s, rr) => noiseFill(xx, s, rr, PAL[key])))(x, size, r);
+  return c;
+}
+const T16 = {};
+const tex16 = key => (T16[key] = T16[key] || makeTex(key, 16, hash(key + '16')).toDataURL());
+const T8 = {};
+const tex8 = key => (T8[key] = T8[key] || [makeTex(key, 8, hash(key + 'a')), makeTex(key, 8, hash(key + 'b'))]);
+
+/* sfondo di terra e logo di pietra */
+document.body.style.backgroundImage = `linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url(${tex16('dirt')})`;
+document.documentElement.style.setProperty('--logo-tex', `url(${tex16('logo')})`);
+
+/* =========================================================
+   PERSONAGGI A BLOCCHI
+   ========================================================= */
+const HEADS = {
+  paul:[
+    "..KKKKKKKK..",
+    ".kkkkkkkkkk.",
+    "..HHHHHHHH..",
+    "..HssssssH..",
+    "..swpsswps..",
+    "..ssssssss..",
+    "..sssmmsss..",
+    "..ssssssss.."],
+  laura:[
+    "..hhhhhhhh..",
+    "..hrrrrrrh..",
+    "..hhhhhhhh..",
+    ".hhsssssshh.",
+    ".hswpsswpsh.",
+    ".hssssssssh.",
+    ".hsssmmsssh.",
+    ".hssssssssh."],
+  muhammad:[
+    "..hhhhhhhh..",
+    "..hhhhhhhh..",
+    "..hssssssh..",
+    "..ssssssss..",
+    "..swpsswps..",
+    "..ssssssss..",
+    "..bbbmmbbb..",
+    "..bbbbbbbb.."]
+};
+const BODY_IDLE = [
+  "AASSSSSSSSAA",
+  "AASSSSSSSSAA",
+  "AASSSSSSSSAA",
+  "ssSSSSSSSSss",
+  "..LLLLLLLL..",
+  "..PPPPQQQQ..",
+  "..PPPPQQQQ..",
+  "..PPPPQQQQ..",
+  "..PPPPQQQQ..",
+  "..BBBBBBBB.."];
+const BODY_WALK = [
+  "AASSSSSSSSAA",
+  "AASSSSSSSSAA",
+  "ssSSSSSSSSAA",
+  "..SSSSSSSSAA",
+  "..LLLLLLLLss",
+  "..PPPPQQQQ..",
+  "..PPPPQQQQ..",
+  ".PPPP..QQQQ.",
+  ".PPPP..QQQQ.",
+  ".BBBB..BBBB."];
+function patch(rows, edits){
+  const a = rows.map(r => r.split(''));
+  edits.forEach(([r, c, ch]) => { a[r][c] = ch; });
+  return a.map(r => r.join(''));
+}
+const TEAM = [
+  { id:'paul', name:'Paul', from:'archeologo inglese', g:'o',
+    colors:{K:'#b59b6a',k:'#5a4426',H:'#7a5230',s:'#f0c8a0',w:'#ffffff',p:'#3b5bd6',m:'#a0523a',S:'#4f8fbf',A:'#3f78a5',L:'#5a3a1e',P:'#8a7350',Q:'#7a6545',B:'#4a3520'} },
+  { id:'laura', name:'Laura', from:'archeologa italiana', g:'a',
+    colors:{h:'#4a2b14',r:'#d84a3a',s:'#e0aa80',w:'#ffffff',p:'#5a3a1a',m:'#b04a4a',S:'#e07a2a',A:'#c0651e',L:'#3a2a1a',P:'#3a5aa8',Q:'#30508f',B:'#3a3a3a'} },
+  { id:'muhammad', name:'Muhammad', from:'archeologo egiziano', g:'o',
+    colors:{h:'#1a1a1a',b:'#2a1a10',s:'#8a5a36',w:'#ffffff',p:'#1a1a1a',m:'#5a2a1a',S:'#e8e8e8',A:'#cfcfcf',L:'#5a3a1e',P:'#5a5a5a',Q:'#4a4a4a',B:'#2a2a2a'} }
+];
+const TOOL = { T:'#c8c8c8', W:'#8a5a2b' };
+function spriteCanvas(rows, colors, scale){
+  const w = rows[0].length, h = rows.length;
+  const c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale;
+  const x = c.getContext('2d');
+  rows.forEach((r, j) => { [...r].forEach((ch, i) => {
+    if (ch === '.' || !colors[ch]) return;
+    x.fillStyle = colors[ch]; x.fillRect(i * scale, j * scale, scale, scale);
+  }); });
+  return c;
+}
+const FRAMES = {}, ROWS_OF = {};
+TEAM.forEach(t => {
+  const head = HEADS[t.id];
+  const idle = head.concat(BODY_IDLE);
+  const raised = [[0,10,'T'],[0,11,'T'],[1,10,'T'],[1,11,'T'],[2,10,'W'],[2,11,'W'],[3,10,'s'],[3,11,'s'],
+    [4,10,'A'],[4,11,'A'],[5,10,'A'],[5,11,'A'],[6,10,'A'],[6,11,'A'],[7,10,'A'],[7,11,'A'],
+    [9,10,'.'],[9,11,'.'],[10,10,'.'],[10,11,'.'],[11,10,'.'],[11,11,'.']];
+  const down = [[12,10,'W'],[12,11,'W'],[13,10,'W'],[13,11,'W'],[14,10,'T'],[14,11,'T'],[15,10,'T'],[15,11,'T']];
+  const sets = { idle, walk:head.concat(BODY_WALK), dig1:patch(idle, raised), dig2:patch(idle, down) };
+  ROWS_OF[t.id] = idle;
+  FRAMES[t.id] = {};
+  const col = Object.assign({}, t.colors, TOOL);
+  Object.keys(sets).forEach(k => { FRAMES[t.id][k] = spriteCanvas(sets[k], col, 4).toDataURL(); });
+});
+const teamOf = id => TEAM.find(t => t.id === id);
+function charCanvas(id, scale){ return spriteCanvas(ROWS_OF[id], teamOf(id).colors, scale || 4); }
+
+/* =========================================================
+   REPERTI (sprite 10x10)
+   ========================================================= */
+const VASE = ["...oooo...","....oo....","..o.oo.o..","..oooooo..",".oooooooo.",".oOOOOOOo.",".oooooooo.","..oooooo..","...oooo...","....oo...."];
+const SHARD = ["..........","...gg.....","..gGGg....","..gGGGgg..",".gGGGGGGg.",".gGGGGGg..","..ggGGg...","....gg....","..........",".........."];
+const ITEMS = {
+  vaso:{ name:'Vaso romano', rows:VASE, colors:{o:'#D08A48',O:'#68372B'},
+    fact:'I Romani usavano vasi di terracotta per conservare cibo, olio e vino.' },
+  moneta:{ name:'Moneta romana',
+    rows:["...yyyy...",".yyyyyyyy.",".yyYYYYyy.","yyYyyyyYyy","yyYyYYyYyy","yyYyYYyYyy","yyYyyyyYyy",".yyYYYYyy.",".yyyyyyyy.","...yyyy..."],
+    colors:{y:'#E3D36A',Y:'#8C7A2A'}, fact:'Con le monete romane si pagava in tutto l’impero: sopra c’era spesso il volto dell’imperatore.' },
+  ascia:{ name:'Ascia di pietra levigata',
+    rows:["......WW..",".SSSSSWW..","SsssssWW..","SsssssWW..",".SSSSSWW..","......WW..","......WW..","......WW..","......WW..","......ww.."],
+    colors:{S:'#3f523f',s:'#6f8a6a',W:'#8a5a2b',w:'#5a3a1a'}, fact:'Con l’ascia di pietra levigata si tagliavano gli alberi per costruire le palafitte.' },
+  freccia:{ name:'Punta di freccia',
+    rows:["....ff....","...fFFf...","...fFFf...","..fFFFFf..","..fFFFFf..",".fFFFFFFf.",".fFFggFFf.",".ff.gg.ff.","....gg....",".........."],
+    colors:{f:'#4a4a56',F:'#8a8a96',g:'#8a5a2b'}, fact:'Le punte di freccia erano fatte di selce, una pietra dura che si scheggia in punte taglienti.' },
+  ushabti:{ name:'Statuetta ushabti',
+    rows:["...dddd...","..dBBBBd..","..dkBBkd..","..dBBBBd..","...BkkB...","...BBBB...","...BkkB...","...BBBB...","...BkkB...","...bbbb..."],
+    colors:{d:'#1f4fa0',B:'#4ab0c8',k:'#13233f',b:'#2a7f95'}, fact:'Gli Egizi mettevano gli ushabti nelle tombe: credevano che lavorassero al posto del defunto nell’aldilà.' },
+  scarabeo:{ name:'Scarabeo portafortuna',
+    rows:["...k..k...","....kk....","...kggk...","kk.GGGG.kk",".GGGkkGGG.","kGGGkkGGGk",".GGGkkGGG.","kGGGkkGGGk","..GGkkGG..","...k..k..."],
+    colors:{G:'#2fa58a',g:'#1d6b5a',k:'#13233f'}, fact:'Per gli Egizi lo scarabeo era il simbolo del sole che rinasce ogni mattina: portava fortuna!' },
+  vasoNero:{ name:'Vaso a figure nere',
+    rows:["...OOOO...","....OO....","..O.oo.O..","..oooooo..",".oOOOOOOo.",".oOOOOOOo.",".oooooooo.","..oooooo..","...OOOO...","....OO...."],
+    colors:{o:'#d9823b',O:'#1a1a1a'}, fact:'I Greci dipingevano figure nere sui vasi arancioni: raccontavano storie di dèi ed eroi.' },
+  civetta:{ name:'Moneta con la civetta',
+    rows:["...yyyy...",".yyyyyyyy.",".yYyyyyYy.","yyYYYYYYyy","yyYwYYwYyy","yyYYYYYYyy","yyyYYYYyyy",".yyYYYYyy.",".yyyyyyyy.","...yyyy..."],
+    colors:{y:'#c8ccd2',Y:'#6a707a',w:'#ffffff'}, fact:'La civetta era il simbolo della dea Atena e della città di Atene: si trovava sulle monete d’argento.' },
+  bucchero:{ name:'Vaso di bucchero',
+    rows:["..........","oooooooooo","o.oOoooo.o","o.oOoooo.o",".ooOooooo.","...oooo...","....oo....","....oo....","...oooo...","..oooooo.."],
+    colors:{o:'#222222',O:'#7a7a7a'}, fact:'Il bucchero è una ceramica nera e lucida inventata dagli Etruschi.' },
+  specchio:{ name:'Specchio di bronzo',
+    rows:["...cccc...","..cCCCCc..",".cCCcCCCc.",".cCCCCCCc.",".cCCCCCCc.","..cCCCCc..","...cccc...","....cc....","....cc....","....cc...."],
+    colors:{c:'#7a4a1a',C:'#c98a3a'}, fact:'Gli Etruschi decoravano il retro degli specchi di bronzo con disegni di dèi ed eroi.' },
+  lattina:{ name:'Lattina di oggi',
+    rows:["..........","...rrrr...","..wwwwww..","..rrrrrr..","..rwwwwr..","..rrrrrr..","..rwwwwr..","..rrrrrr..","..wwwwww..",".........."],
+    colors:{r:'#C0503E',w:'#CFCFCF'}, fact:'Anche i rifiuti di oggi un giorno racconteranno come viviamo noi!' },
+  chiave:{ name:'Chiave moderna',
+    rows:["..........","..........",".ggg......","g...g.....","g...gggggg","g...g..g.g",".ggg...g.g","..........","..........",".........."],
+    colors:{g:'#CFCFCF'}, fact:'Qualcuno l’avrà persa passeggiando nel campo: è un oggetto dei nostri giorni.' },
+  tappo:{ name:'Tappo di bottiglia',
+    rows:["..........","..........","..rrrrrr..",".rrwwwwrr.",".rwwrrwwr.",".rwwrrwwr.",".rrwwwwrr.","..rrrrrr..","..........",".........."],
+    colors:{r:'#4A8FD8',w:'#FFFFFF'}, fact:'La plastica non esisteva nell’antichità: questo oggetto è sicuramente recente.' },
+  coccioMed:{ name:'Coccio medievale', rows:SHARD, colors:{g:'#3E6B2E',G:'#9AD284'},
+    fact:'Nel Medioevo molti piatti e boccali erano ricoperti da una vernice verde e lucida.' },
+  fibbia:{ name:'Fibbia medievale',
+    rows:["..........","..ssssss..",".s......s.",".s..ss..s.",".s..ss..s.",".s......s.","..ssssss..","..........","..........",".........."],
+    colors:{s:'#959595'}, fact:'Le fibbie servivano a chiudere cinture e mantelli.' },
+  coccioRom:{ name:'Coccio di terracotta', rows:SHARD, colors:{g:'#7a3a1e',G:'#c0703e'},
+    fact:'I cocci sono pezzi di vasi rotti: sono i reperti più comuni in uno scavo!' },
+  coccioBr:{ name:'Coccio dell’età del Bronzo', rows:SHARD, colors:{g:'#3a2a1a',G:'#7a5a3a'},
+    fact:'Nell’età del Bronzo i vasi erano fatti a mano, senza il tornio: per questo sono un po’ storti.' },
+  lucerna:{ name:'Lucerna romana',
+    rows:["..........","..........","..oooo....",".oOOOOo...","ooOooOoooo","ooOOOOooOo",".oooooooo.","..oooo....","..........",".........."],
+    colors:{o:'#b8703a',O:'#7a4420'}, fact:'La lucerna era una piccola lampada a olio: serviva per fare luce di notte.' },
+  tessera:{ name:'Tessere di mosaico',
+    rows:["..........","..........","..aabb....","..aabb....","..ccaabb..","..ccaabb..","....ccaa..","....ccaa..","..........",".........."],
+    colors:{a:'#e8e2c8',b:'#3a6ab0',c:'#c0503e'}, fact:'Con migliaia di tessere colorate si creavano i mosaici sui pavimenti.' },
+  spillone:{ name:'Spillone di bronzo',
+    rows:["..........",".cc.......",".ccc......","..cC......","...cC.....","....cC....",".....cC...","......cC..",".......c..",".........."],
+    colors:{c:'#7a5a24',C:'#b8863a'}, fact:'Gli spilloni di bronzo servivano a fermare i vestiti o i capelli.' }
+};
+const IMG = {};
+Object.keys(ITEMS).forEach(k => { IMG[k] = spriteCanvas(ITEMS[k].rows, ITEMS[k].colors, 4).toDataURL(); });
+function itemImg(type, cls){ const i = document.createElement('img'); i.src = IMG[type]; i.className = 'sp' + (cls ? ' ' + cls : ''); i.alt = ITEMS[type].name; return i; }
+
+/* =========================================================
+   MAPPE A BLOCCHI (40 x 25 blocchi da 8 pixel)
+   ========================================================= */
+const MW = 40, MH = 25;
+const TILEKEY = { g:'grass', G:'grassDark', t:'leaves', '~':'water', w:'shallow', s:'sand', r:'stone', n:'snow', R:'roof', h:'planks',
+  '#':'road', y:'wheat', f:'farm', p:'palm', k:'reeds', x:'sandstone', m:'mud', u:'flat' };
+function mk(ch){ return Array.from({length:MH}, () => Array(MW).fill(ch)); }
+function fillR(M, x, y, w, h, ch){ for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (j >= 0 && j < MH && i >= 0 && i < MW) M[j][i] = ch; }
+function scat(M, x, y, w, h, ch, p, seed, on){
+  const r = mulberry32(seed);
+  for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++){ const roll = r(); if (j < MH && i < MW && roll < p && (!on || on.includes(M[j][i]))) M[j][i] = ch; }
+}
+function disc(M, cx, cy, rad, ch){ for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) if (Math.hypot(i - cx, j - cy) <= rad) M[j][i] = ch; }
+
+/* =========================================================
+   LE 5 MISSIONI
+   ========================================================= */
+const TUMULI = [[26,8],[33,7],[28,15],[35,16]];
+const MISSIONS = [
+{
+  id:'preistoria', num:1, title:'Il villaggio sul lago', era:'Preistoria · Neolitico', ago:'circa 6000 anni fa',
+  layers:[ { tex:'grass', short:'oggi' }, { tex:'mud', short:'età del Bronzo' }, { tex:'clayGray', short:'Neolitico' } ],
+  targets:[
+    { type:'ascia', n:2, short:'le asce', sing:'ascia', plur:'asce', one:'un’ascia di pietra', all:'tutte e due le asce' },
+    { type:'freccia', n:4, short:'le frecce', sing:'punta di freccia', plur:'punte di freccia', one:'una punta di freccia', all:'tutte le punte di freccia' } ],
+  decoys1:['lattina','tappo','chiave'], decoys2:['spillone','coccioBr','coccioBr'],
+  intro:[
+    ['laura', 'Missione 1: andiamo nella Preistoria, nel Neolitico, circa 6000 anni fa!'],
+    ['paul', 'In quel periodo le persone avevano imparato a coltivare i campi e ad allevare gli animali. Costruivano villaggi.'],
+    ['muhammad', 'La nostra missione: trovare 2 asce di pietra levigata e 4 punte di freccia di selce!'] ],
+  msg:{
+    foundT:'sembra del Neolitico!',
+    reach2:'Siamo allo strato 2: l’età del Bronzo! Le persone avevano imparato a fondere i metalli.',
+    reach3:'Ecco lo strato 3: il Neolitico! È il più profondo, quindi il più antico. Qui cerchiamo asce e frecce.',
+    decoy2:'Viene dall’età del Bronzo: più antico di noi, ma più recente del Neolitico. Scheda salvata!',
+    fb2:'Giusto! L’età del Bronzo è venuta dopo il Neolitico: per questo il suo strato sta sopra.',
+    fb3:'Giusto! Lo strato più profondo è il più antico: il Neolitico.',
+    end:'Hai scoperto che nel Neolitico le persone usavano la pietra per costruire attrezzi e armi da caccia!' },
+  map:{
+    build(){
+      const M = mk('g');
+      fillR(M, 0, 0, 14, 10, 'r'); fillR(M, 0, 0, 7, 3, 'n'); scat(M, 7, 0, 3, 4, 'n', .5, 3, ['r']); scat(M, 10, 0, 6, 11, 'r', .35, 4, ['g']);
+      fillR(M, 0, 13, 15, 12, 't'); scat(M, 0, 13, 15, 12, 'g', .22, 7);
+      const dots = [];
+      for (let y = 0; y < MH; y++){
+        const x0 = 28 + Math.round(Math.sin(y / 4) * 1.6);
+        fillR(M, x0, y, MW - x0, 1, '~'); fillR(M, x0 - 2, y, 2, 1, 'w'); M[y][x0 - 3] = 's';
+        if (y >= 7 && y <= 17 && y % 2 === 1) dots.push([x0 - 2, y], [x0 - 1, y]);
+      }
+      scat(M, 20, 0, 14, 6, 'k', .45, 9, ['w']); scat(M, 20, 19, 14, 6, 'k', .45, 10, ['w']);
+      return { M, dots };
+    },
+    labels:{ A:[1,1], B:[1,14], C:[19,6] },
+    zones:[
+      { z:'A', label:'la montagna', who:'laura', msg:'Sulla montagna fa freddo e non c’è acqua. Il pescatore ha visto i pali vicino alla riva: riprova!' },
+      { z:'B', label:'il bosco fitto', who:'muhammad', msg:'Nel bosco fitto non c’è il lago. Gli indizi parlano di pali nell’acqua, vicino alla riva. Riprova!' },
+      { z:'C', label:'la riva del lago', ok:true } ],
+    sources:[
+      { label:'Il racconto del pescatore', who:'paul', fx:['blink','w'], lines:[
+        'Nella Preistoria non esisteva la scrittura: niente testi antichi da leggere!',
+        'Però un pescatore racconta: «Quando il lago era basso, ho visto spuntare dall’acqua tanti pali di legno, vicino alla riva.»'] },
+      { label:'La foto dal drone', who:'muhammad', fx:['dots','dots','#3a2410',4], lines:[
+        'Dal drone si vedono file di puntini scuri nell’acqua bassa: sono pali di legno!',
+        'Servivano a reggere le palafitte, cioè le case costruite sopra l’acqua.'] },
+      { label:'Il campo del contadino', who:'laura', fx:['box',[18,8,7,9]], lines:[
+        'Un contadino, arando vicino alla riva, ha trovato una punta di freccia di pietra! Ho segnato il punto sulla mappa.'] } ],
+    start:'Nella Preistoria non c’erano libri: dobbiamo usare altri indizi! Guardali tutti, poi scegli la zona.',
+    okLines:[
+      ['paul', 'Esatto! Le persone del Neolitico costruivano villaggi di palafitte sulla riva dei laghi.'],
+      ['muhammad', 'Andiamo sulla riva. Prima di scavare però serve la quadrettatura!'] ]
+  }
+},
+{
+  id:'egizi', num:2, title:'La tomba nella valle', era:'Antico Egitto', ago:'circa 3500 anni fa',
+  layers:[ { tex:'sand', short:'oggi' }, { tex:'redsand', short:'epoca romana' }, { tex:'limestone', short:'antico Egitto' } ],
+  targets:[
+    { type:'ushabti', n:2, short:'le statuette', sing:'statuetta', plur:'statuette', one:'una statuetta', all:'tutte e due le statuette' },
+    { type:'scarabeo', n:4, short:'gli scarabei', sing:'scarabeo', plur:'scarabei', one:'uno scarabeo', all:'tutti gli scarabei' } ],
+  decoys1:['lattina','tappo','chiave'], decoys2:['lucerna','coccioRom','lucerna'],
+  intro:[
+    ['muhammad', 'Missione 2: andiamo nel mio paese, l’Egitto! Qui circa 3500 anni fa regnavano i faraoni.'],
+    ['paul', 'Gli antichi Egizi vivevano lungo il fiume Nilo e scrivevano con i geroglifici, piccoli disegni al posto delle lettere.'],
+    ['laura', 'La nostra missione: trovare 2 statuette ushabti e 4 amuleti a forma di scarabeo!'] ],
+  msg:{
+    foundT:'sembra dell’antico Egitto!',
+    reach2:'Strato 2: l’epoca romana! Dopo i faraoni, anche l’Egitto entrò a far parte dell’impero romano.',
+    reach3:'Ecco lo strato 3: l’antico Egitto! È il più profondo, quindi il più antico. Qui cerchiamo statuette e scarabei.',
+    decoy2:'È dell’epoca romana: più antico di noi, ma più recente dei faraoni. Scheda salvata!',
+    fb2:'Giusto! I Romani sono arrivati dopo i faraoni: per questo il loro strato sta sopra.',
+    fb3:'Giusto! Lo strato più profondo è il più antico: quello dell’antico Egitto.',
+    end:'Hai scoperto che gli Egizi riempivano le tombe di oggetti per accompagnare i defunti nell’aldilà!' },
+  map:{
+    build(){
+      const M = mk('s');
+      for (let y = 0; y < MH; y++){
+        const cx = 23 + Math.round(Math.sin(y / 5) * 1.5);
+        fillR(M, cx - 4, y, 4, 1, 'f'); fillR(M, cx + 3, y, 3, 1, 'f'); fillR(M, cx, y, 3, 1, '~');
+      }
+      scat(M, 15, 0, 16, 25, 'p', .18, 21, ['f']);
+      fillR(M, 1, 3, 14, 19, 'x'); fillR(M, 5, 5, 6, 15, 's'); fillR(M, 6, 3, 4, 2, 's');
+      fillR(M, 31, 3, 9, 17, '#');
+      for (let x = 32; x < 39; x += 3) for (let y = 4; y < 19; y += 3) fillR(M, x, y, 2, 2, 'u');
+      return { M };
+    },
+    labels:{ A:[5,6], B:[16,1], C:[32,1] },
+    zones:[
+      { z:'A', label:'la valle tra le rocce', ok:true },
+      { z:'B', label:'i campi sul Nilo', who:'muhammad', msg:'Ogni anno la piena del Nilo allagava i campi: lì gli Egizi coltivavano, non scavavano tombe. Riprova!' },
+      { z:'C', label:'la città di oggi', who:'laura', msg:'Sotto la città di oggi ci sono case e strade. E poi il papiro dice “a ovest del fiume”! Riprova!' } ],
+    sources:[
+      { label:'Il papiro antico', who:'paul', fx:['blink','~'], lines:[
+        'Il papiro dice: «La tomba dello scriba è nella valle tra le rocce, a ovest del grande fiume, dove tramonta il sole.»',
+        'Sulle mappe l’ovest è a sinistra! Ho evidenziato il Nilo: guarda cosa c’è alla sua sinistra.'] },
+      { label:'La foto aerea', who:'muhammad', fx:['marks',[[7,11,2,3],[7,14,2,1]],'rgba(40,24,10,.85)'], lines:[
+        'Nella valle si vede un rettangolo scuro: potrebbe essere l’ingresso di una tomba, con gli scalini che scendono!'] },
+      { label:'La foto dal satellite', who:'laura', fx:['box',[4,8,8,8]], lines:[
+        'Anche il satellite mostra una zona strana: lampeggia sulla mappa. Che indizio!'] } ],
+    start:'Usiamo gli indizi: il papiro, la foto aerea e la foto dal satellite. Poi scegli la zona!',
+    okLines:[
+      ['muhammad', 'Bravissimo! Nel mio paese le tombe degli scribi e dei faraoni erano scavate nelle valli del deserto.'],
+      ['paul', 'Andiamo nella valle. Prima di scavare serve la quadrettatura!'] ]
+  }
+},
+{
+  id:'greci', num:3, icon:'civetta', title:'Il tempio sul mare', era:'Greci · Magna Grecia', ago:'circa 2500 anni fa',
+  layers:[ { tex:'grass', short:'oggi' }, { tex:'dirt', short:'epoca romana' }, { tex:'marble', short:'età greca' } ],
+  targets:[
+    { type:'vasoNero', n:2, short:'i vasi', sing:'vaso', plur:'vasi', one:'un vaso a figure nere', all:'tutti e due i vasi' },
+    { type:'civetta', n:4, short:'le monete', sing:'moneta', plur:'monete', one:'una moneta con la civetta', all:'tutte le monete' } ],
+  decoys1:['lattina','tappo','chiave'], decoys2:['tessera','coccioRom','lucerna'],
+  intro:[
+    ['paul', 'Missione 3: siamo nel Sud Italia, circa 2500 anni fa. Qui arrivarono i Greci con le loro navi!'],
+    ['laura', 'Questa zona si chiamava Magna Grecia. I Greci fondarono città e costruirono templi bellissimi per i loro dèi.'],
+    ['muhammad', 'La nostra missione: trovare 2 vasi a figure nere e 4 monete con la civetta!'] ],
+  msg:{
+    foundT:'sembra greco!',
+    reach2:'Strato 2: l’epoca romana! Dopo i Greci, in questa terra arrivarono i Romani.',
+    reach3:'Ecco lo strato 3: l’età greca! È il più profondo, quindi il più antico. Qui cerchiamo vasi e monete.',
+    decoy2:'È dell’epoca romana: più antico di noi, ma più recente dei Greci. Scheda salvata!',
+    fb2:'Giusto! I Romani sono arrivati dopo i Greci: per questo il loro strato sta sopra.',
+    fb3:'Giusto! Lo strato più profondo è il più antico: quello dei Greci.',
+    end:'Hai scoperto che i Greci decoravano vasi e monete con le storie e i simboli dei loro dèi!' },
+  map:{
+    build(){
+      const M = mk('g');
+      for (let x = 0; x < MW; x++){
+        const top = 16 + Math.round(Math.sin(x / 3));
+        fillR(M, x, top, 1, MH - top, '~');
+        if (x < 21){ M[top - 1][x] = 's'; M[top - 2][x] = 's'; }
+      }
+      fillR(M, 34, 0, 6, MH, '~'); fillR(M, 33, 0, 1, 15, 's');
+      fillR(M, 22, 12, 9, 9, 'g'); fillR(M, 21, 13, 1, 9, 'r'); fillR(M, 31, 13, 1, 9, 'r'); fillR(M, 21, 21, 11, 1, 'r');
+      fillR(M, 1, 1, 13, 9, 'm'); scat(M, 1, 1, 13, 9, 'w', .3, 31, ['m']); scat(M, 1, 1, 13, 9, 'k', .2, 32, ['m']);
+      scat(M, 15, 1, 18, 10, 't', .12, 33, ['g']);
+      const cols = [];
+      [23,25,27,29].forEach(x => { cols.push([x,14],[x,19]); });
+      cols.push([23,15.7],[23,17.3],[29,15.7],[29,17.3]);
+      return { M, cols };
+    },
+    labels:{ A:[4,13], B:[23,12], C:[2,2] },
+    zones:[
+      { z:'A', label:'la spiaggia', who:'laura', msg:'Sulla spiaggia le onde muovono sempre la sabbia. E il viaggiatore parla di un posto alto sopra il mare! Riprova!' },
+      { z:'B', label:'il promontorio', ok:true },
+      { z:'C', label:'la palude', who:'muhammad', msg:'Nella palude ci sono acqua ferma e fango: nessun indizio porta lì. Riprova!' } ],
+    sources:[
+      { label:'Il viaggiatore antico', who:'paul', fx:['blink','r'], lines:[
+        'Un viaggiatore antico scrisse: «I marinai vedevano il tempio bianco da lontano, alto sopra il mare, su un promontorio.»',
+        'Un promontorio è una punta di terra che entra nel mare. Ho evidenziato le sue rocce!'] },
+      { label:'La colonna caduta', who:'muhammad', fx:['dots',[[32.5,20],[34,22],[31.5,23]],'#ffffff',5], lines:[
+        'Un pescatore ha trovato in mare dei pezzi di colonna di marmo, proprio vicino alla punta di terra!'] },
+      { label:'La foto aerea', who:'laura', fx:['dots','cols','#20380e',4], lines:[
+        'Dalla foto aerea si vedono tanti puntini in fila che formano un rettangolo: potrebbero essere le basi delle colonne!'] } ],
+    start:'Usiamo gli indizi: il racconto antico, la colonna caduta e la foto aerea. Poi scegli la zona!',
+    okLines:[
+      ['paul', 'Esatto! I Greci costruivano i templi in posti alti e ben visibili, per onorare i loro dèi.'],
+      ['muhammad', 'Andiamo sul promontorio: prima serve la quadrettatura!'] ]
+  }
+},
+{
+  id:'etruschi', num:4, title:'La città dei morti', era:'Etruschi', ago:'circa 2500 anni fa',
+  layers:[ { tex:'grass', short:'oggi' }, { tex:'gravel', short:'Medioevo' }, { tex:'tufo', short:'età etrusca' } ],
+  targets:[
+    { type:'bucchero', n:2, short:'i vasi', sing:'vaso', plur:'vasi', one:'un vaso di bucchero', all:'tutti e due i vasi' },
+    { type:'specchio', n:3, short:'gli specchi', sing:'specchio', plur:'specchi', one:'uno specchio di bronzo', all:'tutti gli specchi' } ],
+  decoys1:['lattina','tappo','chiave'], decoys2:['coccioMed','fibbia','coccioMed'],
+  intro:[
+    ['laura', 'Missione 4: torniamo in Italia, nella terra degli Etruschi, circa 2500 anni fa!'],
+    ['paul', 'Gli Etruschi vivevano soprattutto in Toscana, nel Lazio e in Umbria, prima che Roma diventasse potente.'],
+    ['muhammad', 'La missione: trovare 2 vasi di bucchero e 3 specchi di bronzo!'] ],
+  msg:{
+    foundT:'sembra etrusco!',
+    reach2:'Strato 2: il Medioevo! Scendendo andiamo sempre più indietro nel tempo.',
+    reach3:'Ecco lo strato 3: l’età etrusca! Vedi? È tufo, una roccia morbida: gli Etruschi ci scavavano le tombe.',
+    decoy2:'È del Medioevo: più antico di noi, ma molto più recente degli Etruschi. Scheda salvata!',
+    fb2:'Giusto! Il Medioevo è venuto dopo gli Etruschi: per questo il suo strato sta sopra.',
+    fb3:'Giusto! Lo strato più profondo è il più antico: quello degli Etruschi.',
+    end:'Hai scoperto che gli Etruschi costruivano tombe come piccole case, con dentro gli oggetti più cari!' },
+  map:{
+    build(){
+      const M = mk('g');
+      for (let y = 0; y < MH; y++){ const cx = 18 + Math.round(Math.sin(y / 4) * 1.3); fillR(M, cx, y, 2, 1, '~'); }
+      fillR(M, 1, 2, 14, 14, 'r'); fillR(M, 2, 3, 12, 12, '#');
+      [3,6,9,12].forEach(x => [4,7,10,13].forEach(y => { fillR(M, x, y, 2, 1, 'R'); fillR(M, x, y + 1, 2, 1, 'h'); }));
+      TUMULI.forEach(([cx, cy]) => disc(M, cx, cy, 1.8, 'G'));
+      scat(M, 0, 0, 40, 25, 't', .06, 41, ['g']);
+      return { M };
+    },
+    labels:{ A:[1,0], B:[20,21], C:[24,2] },
+    zones:[
+      { z:'A', label:'il paese sul colle', who:'muhammad', msg:'Lì c’era la città dei vivi! Le tombe si facevano fuori dalla città. Riprova!' },
+      { z:'B', label:'la valle del fiume', who:'laura', msg:'Nella valle il fiume allaga spesso il terreno, e le foto non mostrano nulla. Riprova!' },
+      { z:'C', label:'la collina di fronte', ok:true } ],
+    sources:[
+      { label:'Lo scrittore romano', who:'paul', fx:['blink','R'], lines:[
+        'Uno scrittore romano racconta: «Gli Etruschi seppellivano i loro morti fuori dalla città, sotto collinette rotonde di terra.»',
+        'Ho evidenziato la città: la necropoli deve trovarsi fuori!'] },
+      { label:'La foto aerea', who:'muhammad', fx:['rings',TUMULI,2.8,'rgba(20,40,8,.75)'], lines:[
+        'Nella foto aerea si vedono dei cerchi nell’erba: sono collinette rotonde, i tumuli!'] },
+      { label:'La foto dal satellite', who:'laura', fx:['box',[23,4,16,16]], lines:[
+        'Il satellite conferma: c’è una zona strana che lampeggia sulla mappa!'] } ],
+    start:'Usiamo gli indizi: lo scrittore romano, la foto aerea e il satellite. Poi scegli la zona!',
+    okLines:[
+      ['laura', 'Perfetto! Una necropoli è una “città dei morti”: le tombe sembravano piccole case per l’aldilà.'],
+      ['muhammad', 'Andiamo sulla collina: prima serve la quadrettatura!'] ]
+  }
+},
+{
+  id:'romani', num:5, title:'La villa romana', era:'Romani', ago:'circa 2000 anni fa',
+  layers:[ { tex:'grass', short:'oggi' }, { tex:'coarse', short:'Medioevo' }, { tex:'clay', short:'età romana' } ],
+  targets:[
+    { type:'vaso', n:2, short:'i vasi', sing:'vaso', plur:'vasi', one:'un vaso romano', all:'tutti e due i vasi' },
+    { type:'moneta', n:5, short:'le monete', sing:'moneta', plur:'monete', one:'una moneta romana', all:'tutte le monete' } ],
+  decoys1:['lattina','tappo','chiave'], decoys2:['coccioMed','coccioMed','fibbia'],
+  intro:[
+    ['paul', 'Missione 5: siamo al tempo degli antichi Romani, circa 2000 anni fa!'],
+    ['laura', 'I Romani ricchi avevano in campagna grandi case chiamate ville, con mosaici, giardini e terme.'],
+    ['muhammad', 'La missione: trovare 2 vasi e 5 monete di epoca romana!'] ],
+  msg:{
+    foundT:'sembra romano!',
+    reach2:'Siamo arrivati allo strato 2: il Medioevo! Scendendo torniamo indietro nel tempo.',
+    reach3:'Ecco lo strato 3: l’età romana! È il più profondo, quindi il più antico. Qui cerchiamo vasi e monete.',
+    decoy2:'Del Medioevo: più antico di noi, ma più recente dei Romani. Scheda salvata!',
+    fb2:'Giusto! Il Medioevo è venuto dopo i Romani: per questo il suo strato sta sopra.',
+    fb3:'Giusto! Lo strato più profondo è il più antico: quello romano.',
+    end:'Hai scoperto come vivevano i Romani nelle loro ville di campagna!' },
+  map:{
+    build(){
+      const M = mk('g');
+      fillR(M, 0, 0, 15, 11, 't'); scat(M, 0, 0, 15, 11, 'g', .25, 11);
+      fillR(M, 0, 17, 17, 1, '#'); fillR(M, 8, 13, 1, 12, '#');
+      [1,4,10,13].forEach(x => [14,19,22].forEach(y => { fillR(M, x, y, 3, 1, 'R'); fillR(M, x, y + 1, 3, 1, 'h'); }));
+      fillR(M, 19, 3, 14, 18, 'y');
+      for (let y = 0; y < MH; y++){ const o = Math.round(Math.sin(y / 3.5) * 1.3); fillR(M, 35 + o, y, 3, 1, '~'); }
+      return { M };
+    },
+    labels:{ A:[1,1], B:[19,3], C:[1,12] },
+    zones:[
+      { z:'A', label:'il bosco', who:'laura', msg:'Nel bosco? Il testo antico dice che la villa era lontana dal bosco. Riprova!' },
+      { z:'B', label:'il campo di grano', ok:true },
+      { z:'C', label:'il paese', who:'muhammad', msg:'Sotto il paese di oggi ci sono case e strade, e le foto non mostrano nulla. Riprova!' } ],
+    sources:[
+      { label:'Il testo antico', who:'paul', fx:['blink','~'], lines:[
+        'Il testo antico racconta: «La villa sorgeva in un campo di grano, vicino al fiume, lontano dal bosco.»',
+        'Ho evidenziato il fiume sulla mappa. Dov’è il campo di grano vicino al fiume?'] },
+      { label:'La foto aerea', who:'muhammad', fx:['marks',[[22,8,9,1],[22,15,9,1],[22,8,1,8],[30,8,1,8],[26,8,1,4],[22,12,4,1],[27,12,4,1]],'rgba(40,90,20,.85)'], lines:[
+        'Ecco la foto scattata dall’aereo! Nel campo il grano cresce in modo diverso sopra i muri sepolti.',
+        'Vedi quelle linee verdi a forma di stanze? Sotto potrebbero esserci i muri di una villa!'] },
+      { label:'La foto dal satellite', who:'laura', fx:['box',[21,7,11,10]], lines:[
+        'Anche la foto dal satellite mostra un rettangolo strano: lampeggia sulla mappa. Che indizio!'] } ],
+    start:'Usiamo le fonti come indizi: il testo antico, la foto aerea e la foto dal satellite. Poi scegli la zona!',
+    okLines:[
+      ['paul', 'Esatto! Il campo di grano vicino al fiume è il nostro sito archeologico.'],
+      ['muhammad', 'Andiamo sul campo. Prima di scavare però serve la quadrettatura!'] ]
+  }
+}
+];
+
+/* =========================================================
+   SUONI
+   ========================================================= */
+let ac = null, soundOn = true;
+function tone(f, d, delay, type){
+  if (!soundOn) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = ac.currentTime + (delay || 0);
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(0.06, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + d + 0.02);
+  }catch(e){}
+}
+const sfx = {
+  blip(){ tone(880, .05); },
+  dig(){ tone(220, .06); tone(160, .08, .06); tone(110, .1, .13); },
+  find(){ [523,659,784,1047].forEach((f,i) => tone(f, .12, i*.09)); },
+  bad(){ tone(140, .25, 0, 'sawtooth'); },
+  ok(){ tone(660, .08); tone(990, .12, .08); },
+  photo(){ tone(1800, .03); tone(1200, .05, .04); },
+  win(){ [392,523,659,784,659,784,1047].forEach((f,i) => tone(f, .16, i*.14)); }
+};
+$('soundBtn').addEventListener('click', e => {
+  soundOn = !soundOn; e.currentTarget.textContent = 'Suono: ' + (soundOn ? 'sì' : 'no');
+});
+
+/* =========================================================
+   DIALOGHI
+   ========================================================= */
+const dlg = $('dialog'), txtEl = $('txt'), whoEl = $('who'), faceEl = $('face'), nextBtn = $('nextBtn');
+let queue = [], onDone = null, typing = null, fullText = '';
+function setSpeaker(who){
+  faceEl.innerHTML = '';
+  faceEl.appendChild(charCanvas(who, 4)); whoEl.textContent = teamOf(who).name;
+}
+function typeText(text){
+  clearInterval(typing); typing = null; fullText = text;
+  if (reduce){ txtEl.textContent = text; return; }
+  let i = 0; txtEl.textContent = '';
+  typing = setInterval(() => { i += 2; txtEl.textContent = text.slice(0, i); if (i >= text.length){ clearInterval(typing); typing = null; } }, 22);
+}
+function say(who, text){ dlg.hidden = false; queue = []; onDone = null; nextBtn.hidden = true; setSpeaker(who); typeText(text); }
+function talk(lines, done){ dlg.hidden = false; queue = lines.slice(); onDone = done || null; nextLine(); }
+function nextLine(){
+  if (!queue.length){ nextBtn.hidden = true; const d = onDone; onDone = null; if (d) d(); return; }
+  const [who, text] = queue.shift();
+  setSpeaker(who); typeText(text); nextBtn.hidden = false;
+  nextBtn.textContent = queue.length || onDone ? 'Avanti' : 'Ok';
+}
+nextBtn.addEventListener('click', () => {
+  sfx.blip();
+  if (typing){ clearInterval(typing); typing = null; txtEl.textContent = fullText; return; }
+  nextLine();
+});
+function hideDialog(){ dlg.hidden = true; queue = []; onDone = null; clearInterval(typing); typing = null; }
+
+/* =========================================================
+   STATO
+   ========================================================= */
+const L = ['A','B','C','D','E','F','G','H'], COLS = 8, ROWS = 6;
+let S = null, playerName = progress.name || '', seenTeam = false;
+const view = $('view');
+const coord = (c, r) => L[c] + (r + 1);
+const isTarget = type => S.mission.targets.some(t => t.type === type);
+const layerTex = d => d >= 3 ? 'deep' : S.mission.layers[d].tex;
+function newState(m){
+  return { mission:m, day:1, depth:Array.from({length:COLS}, () => Array(ROWS).fill(0)),
+    finds:[], pendings:[], reached:{}, energy:{paul:6, laura:6, muhammad:6}, used:{}, hints:[], sel:'laura',
+    dugTotal:0, dugToday:0, todayFinds:[], allDays:[], phase:'intro' };
+}
+function placeFinds(){
+  const used = { 1:new Set(), 2:new Set(), 3:new Set() };
+  function put(type, layer, cMin, cMax, rMin, rMax){
+    let c, r, k;
+    do { c = cMin + rnd(cMax - cMin + 1); r = rMin + rnd(rMax - rMin + 1); k = c + ',' + r; } while (used[layer].has(k));
+    used[layer].add(k);
+    S.finds.push({ type, col:c, row:r, layer, found:false, documented:false });
+  }
+  S.mission.targets.forEach(t => { for (let i = 0; i < t.n; i++) put(t.type, 3, 1, 6, 1, 4); });
+  S.mission.decoys1.forEach(t => put(t, 1, 0, 7, 0, 5));
+  S.mission.decoys2.forEach(t => put(t, 2, 0, 7, 0, 5));
+}
+const leftOf = type => S.finds.filter(f => f.type === type && !f.documented).length;
+
+/* timer da fermare quando si cambia schermata */
+let mapTimer = null, panoTimer = null, loadTimer = null;
+function stopTimers(){ clearInterval(mapTimer); clearInterval(panoTimer); clearInterval(loadTimer); mapTimer = panoTimer = loadTimer = null; }
+
+/* =========================================================
+   HUD
+   ========================================================= */
+function renderHud(){
+  $('hud').hidden = false;
+  $('mname').textContent = `Missione ${S.mission.num} · ${S.mission.title}`;
+  $('day').textContent = 'Giorno ' + S.day;
+  const sl = $('slots'); sl.innerHTML = '';
+  const parts = [];
+  S.mission.targets.forEach(t => {
+    const got = S.finds.filter(f => f.type === t.type && f.documented).length;
+    for (let i = 0; i < t.n; i++){
+      const s = document.createElement('div'); s.className = 'slot';
+      s.appendChild(itemImg(t.type, i < got ? 'got' : '')); sl.appendChild(s);
+    }
+    parts.push(`${t.plur} trovati ${got} su ${t.n}`);
+  });
+  sl.setAttribute('aria-label', parts.join(', '));
+}
+$('menuBtn').addEventListener('click', () => {
+  if (!S || S.phase === 'fine'){ missionMenu(); return; }
+  if (document.querySelector('.modal')) return;
+  const m = openModal(`<h2 class="px">Tornare alle missioni?</h2>
+    <p>Se esci adesso, lo scavo di questa missione ricomincerà da capo.</p>
+    <div class="act"><button type="button" id="stay">No, continuo</button><button type="button" id="leave">Sì, esci</button></div>`);
+  m.querySelector('#stay').onclick = () => { m.remove(); maybeEndDay(); };
+  m.querySelector('#leave').onclick = () => { m.remove(); missionMenu(); };
+  m.querySelector('#stay').focus();
+});
+
+/* =========================================================
+   CARICAMENTO + TITOLO
+   ========================================================= */
+function showLoading(){
+  stopTimers(); $('hud').hidden = true; hideDialog();
+  view.innerHTML = `<div class="loading">
+    <div class="lt px">Costruzione del mondo</div>
+    <div class="ls" id="lstep">Preparazione dei blocchi...</div>
+    <div class="loadbar"><span id="lbar"></span></div></div>`;
+  const steps = ['Preparazione dei blocchi...', 'Posa degli strati di terra...', 'Nascondo i reperti...', 'Chiamo la squadra di archeologi...'];
+  if (reduce){ setTimeout(titleMenu, 300); return; }
+  let p = 0;
+  loadTimer = setInterval(() => {
+    p += 4; $('lbar').style.width = Math.min(100, p) + '%';
+    $('lstep').textContent = steps[Math.min(steps.length - 1, Math.floor(p / 26))];
+    if (p % 20 === 0) tone(300 + p * 4, .03);
+    if (p >= 104){ clearInterval(loadTimer); loadTimer = null; titleMenu(); }
+  }, 45);
+}
+function drawPano(cv, t){
+  const x = cv.getContext('2d'), B = 8, W = 40, H = 15;
+  const sky = ['#6b9cf0','#6b9cf0','#7aa8f4','#7aa8f4','#89b4f7','#98c0fa','#a8cbfc','#b6d4fd'];
+  for (let j = 0; j < H; j++){ x.fillStyle = sky[Math.min(sky.length - 1, j)]; x.fillRect(0, j * B, 320, B); }
+  x.fillStyle = '#fff3a0'; x.fillRect(268, 10, 18, 18); x.fillStyle = '#ffe760'; x.fillRect(271, 13, 12, 12);
+  x.fillStyle = 'rgba(255,255,255,.92)';
+  [[20,10,6,2],[90,18,8,2],[180,6,5,2],[250,30,7,2]].forEach(([cx, cy, w, h]) => {
+    const ox = ((cx + t * .4) % 380) - 40;
+    x.fillRect(ox, cy, w * B, h * 5); x.fillRect(ox + B, cy - 5, (w - 3) * B, 5);
+  });
+  const surf = [];
+  for (let i = 0; i < W; i++) surf[i] = 7 + Math.round(Math.sin(i / 5) * 1.2 + Math.sin(i / 2.1 + 1) * .6);
+  for (let i = 0; i < W; i++) for (let j = surf[i]; j < H; j++){
+    const d = j - surf[i];
+    const key = d === 0 ? 'grassSide' : d <= 2 ? 'dirt' : d <= 4 ? 'clay' : j < H - 1 ? 'stone' : 'deep';
+    x.drawImage(tex8(key)[(i + j) % 2], i * B, j * B);
+  }
+  [[4, 3], [35, 4]].forEach(([tx, th]) => {
+    const top = surf[tx];
+    for (let k = 1; k <= th; k++) x.drawImage(tex8('log')[0], tx * B, (top - k) * B);
+    for (let a = -1; a <= 1; a++) for (let b = 0; b < 2; b++) x.drawImage(tex8('leaves')[(a + b + 2) % 2], (tx + a) * B, (top - th - 1 - b) * B);
+  });
+  const spr = (type, i, depth) => x.drawImage(spriteCanvas(ITEMS[type].rows, ITEMS[type].colors, 1), i * B - 1, (surf[i] + depth) * B - 1);
+  spr('vaso', 9, 4); spr('moneta', 27, 3); spr('freccia', 19, 5); spr('scarabeo', 31, 5); spr('civetta', 14, 3);
+  [['paul', 16], ['laura', 19], ['muhammad', 22]].forEach(([id, i]) => x.drawImage(charCanvas(id, 1), i * B - 2, surf[i] * B - 18));
+}
+function teamRow(){
+  const row = document.createElement('div'); row.className = 'team-row';
+  TEAM.forEach(t => {
+    const f = document.createElement('figure'); f.appendChild(charCanvas(t.id, 5));
+    const cap2 = document.createElement('figcaption'); cap2.innerHTML = `<b>${t.name}</b>${t.from}`;
+    f.appendChild(cap2); row.appendChild(f);
+  });
+  return row;
+}
+function titleMenu(){
+  stopTimers(); $('hud').hidden = true; hideDialog(); S = null;
+  view.innerHTML = `
+    <div class="title">
+      <div class="pano-wrap">
+        <canvas class="pano" id="pano" width="320" height="120" aria-label="Paesaggio a blocchi con gli strati del terreno e reperti nascosti"></canvas>
+        <div class="logo"><h1 class="px">MINE ARCHEOLOGO</h1></div>
+        <div class="splash px">Scava strato dopo strato!</div>
+      </div>
+      <p class="menu-sub" style="margin:12px 0 0">5 missioni di scavo per diventare detective del passato</p>
+      <div id="teamSlot"></div>
+      <div class="namebox">
+        <label for="nm">Come ti chiami?</label>
+        <input id="nm" maxlength="16" autocomplete="off" placeholder="Il tuo nome" value="${escapeHtml(playerName)}">
+        <button id="go" type="button" class="big green">Gioca</button>
+      </div>
+    </div>`;
+  $('teamSlot').appendChild(teamRow());
+  const pano = $('pano'); let t = 0; drawPano(pano, 0);
+  if (!reduce) panoTimer = setInterval(() => { t++; drawPano(pano, t); }, 80);
+  $('go').addEventListener('click', () => {
+    sfx.ok(); playerName = $('nm').value.trim();
+    progress.name = playerName; saveProgress(); missionMenu();
+  });
+  $('nm').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+}
+const displayName = () => playerName || 'detective';
+
+/* =========================================================
+   MENU MISSIONI
+   ========================================================= */
+function missionIcon(m){
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const x = c.getContext('2d');
+  const bg = new Image(); bg.src = tex16(m.layers[2].tex);
+  const draw = () => { x.drawImage(bg, 0, 0); const it = ITEMS[m.icon || m.targets[0].type]; x.drawImage(spriteCanvas(it.rows, it.colors, 1), 3, 3); };
+  if (bg.complete) draw(); else bg.onload = draw;
+  return c;
+}
+function starsHtml(n){ return Array.from({length:3}, (_, i) => i < n ? '<b>★</b>' : '☆').join(''); }
+function missionMenu(){
+  stopTimers(); S = null; $('hud').hidden = true; hideDialog();
+  view.innerHTML = `
+    <h2 class="px menu-h">Scegli la missione, ${escapeHtml(displayName())}!</h2>
+    <p class="menu-sub">Ogni missione ti porta in un’epoca diversa: sono in ordine dalla più antica alla più recente.</p>
+    <div class="missions" id="missions"></div>
+    <div class="timeline px" aria-hidden="true"><span>più antico</span><i></i><span>più recente</span></div>
+    <div class="menu-act"><button type="button" class="small" id="back">‹ Cambia nome</button></div>`;
+  const box = $('missions');
+  MISSIONS.forEach(m => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'mcard';
+    const st = progress.stars[m.id] || 0;
+    b.setAttribute('aria-label', `Missione ${m.num}: ${m.title}, ${m.era}, ${m.ago}. Stelle: ${st} su 3`);
+    b.appendChild(missionIcon(m));
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="mn">MISSIONE ${m.num}</div><div class="mt">${m.title}</div>
+      <div class="me">${m.era}<br>${m.ago}</div><div class="mstars">${starsHtml(st)}</div>`;
+    b.appendChild(info);
+    b.onclick = () => { sfx.ok(); startMission(m); };
+    box.appendChild(b);
+  });
+  $('back').onclick = () => { sfx.blip(); titleMenu(); };
+  say('laura', 'Scegli una missione! Le stelle mostrano in quanti giorni hai finito lo scavo: meno giorni, più stelle.');
+}
+
+/* =========================================================
+   INTRO MISSIONE
+   ========================================================= */
+function startMission(m){
+  stopTimers();
+  S = newState(m); placeFinds(); renderHud();
+  view.innerHTML = '';
+  view.appendChild(teamRow());
+  const n = displayName();
+  const lines = [];
+  if (!seenTeam){
+    seenTeam = true;
+    lines.push(
+      ['paul', `Hello, ${n}! Sono Paul e vengo dall’Inghilterra. Amo leggere i testi antichi: sono fonti preziose!`],
+      ['laura', 'Ciao! Io sono Laura, archeologa italiana. Con la mia cazzuola so scavare strato dopo strato.'],
+      ['muhammad', 'Salam! Sono Muhammad e vengo dall’Egitto. Il mio lavoro preferito è documentare: foto, disegni e schede.'],
+      ['laura', 'Noi archeologi siamo detective del passato: cerchiamo gli indizi lasciati da chi è vissuto prima di noi.']);
+  }
+  lines.push(...m.intro, ['paul', 'Prima di tutto dobbiamo trovare il sito archeologico, cioè il posto giusto dove scavare. Andiamo!']);
+  talk(lines, phaseSito);
+}
+
+/* =========================================================
+   FASE 1: TROVARE IL SITO
+   ========================================================= */
+let mapCtx = null, mapState = null, mapData = null;
+function phaseSito(){
+  S.phase = 'sito';
+  const md = S.mission.map;
+  mapData = md.build();
+  view.innerHTML = `
+    <div class="map-wrap">
+      <div>
+        <canvas id="map" width="320" height="200" aria-label="Mappa della zona: ${md.zones.map(z => `${z.z} ${z.label}`).join(', ')}"></canvas>
+        <div class="zones" id="zones">${md.zones.map(z => `<button type="button" data-z="${z.z}">Zona ${z.z} · ${z.label}</button>`).join('')}</div>
+      </div>
+      <div class="side panel">
+        <h2>Gli indizi</h2>
+        <div class="stack" id="srcs">${md.sources.map((s, i) => `<button type="button" data-i="${i}">${s.label}</button>`).join('')}</div>
+        <p class="hint">Guarda gli indizi, poi scegli la zona dove scavare.</p>
+      </div>
+    </div>`;
+  mapState = { seen:md.sources.map(() => false), blink:true };
+  mapCtx = $('map').getContext('2d');
+  drawMap();
+  mapTimer = setInterval(() => { mapState.blink = !mapState.blink; drawMap(); }, 500);
+  $('srcs').querySelectorAll('button').forEach(b => b.onclick = () => {
+    const s = md.sources[+b.dataset.i];
+    sfx.blip(); mapState.seen[+b.dataset.i] = true; b.classList.add('done'); drawMap();
+    talk(s.lines.map(l => [s.who, l]));
+  });
+  $('zones').querySelectorAll('button').forEach(b => b.onclick = () => chooseZone(b.dataset.z));
+  say('paul', md.start);
+}
+function chooseZone(z){
+  const md = S.mission.map, zone = md.zones.find(q => q.z === z);
+  if (!zone.ok){ sfx.bad(); say(zone.who, zone.msg); return; }
+  if (!mapState.seen.some(Boolean)){ sfx.bad(); say('paul', 'Un buon archeologo non sceglie a caso: guarda almeno un indizio prima di decidere!'); return; }
+  clearInterval(mapTimer); mapTimer = null; sfx.find();
+  talk(md.okLines, phaseQuadretti);
+}
+function drawMap(){
+  const x = mapCtx, M = mapData.M, md = S.mission.map, B = 8;
+  for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) x.drawImage(tex8(TILEKEY[M[j][i]])[(i * 7 + j * 13) % 2], i * B, j * B);
+  md.sources.forEach((s, k) => {
+    if (!mapState.seen[k]) return;
+    const fx = s.fx;
+    if (fx[0] === 'blink' && mapState.blink){
+      x.fillStyle = 'rgba(255,255,85,.55)';
+      for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) if (M[j][i] === fx[1]) x.fillRect(i * B, j * B, B, B);
+    } else if (fx[0] === 'marks'){
+      x.fillStyle = fx[2]; fx[1].forEach(([a, b, w, h]) => x.fillRect(a * B, b * B, w * B, h * B));
+    } else if (fx[0] === 'dots'){
+      const list = typeof fx[1] === 'string' ? mapData[fx[1]] : fx[1], sz = fx[3];
+      x.fillStyle = fx[2]; list.forEach(([a, b]) => x.fillRect(Math.round(a * B + B / 2 - sz / 2), Math.round(b * B + B / 2 - sz / 2), sz, sz));
+    } else if (fx[0] === 'rings'){
+      x.fillStyle = fx[3];
+      fx[1].forEach(([cx, cy]) => { for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++)
+        if (Math.abs(Math.hypot(i - cx, j - cy) - fx[2]) < .55) x.fillRect(i * B + 1, j * B + 1, B - 2, B - 2); });
+    } else if (fx[0] === 'box' && mapState.blink){
+      const [a, b, w, h] = fx[1];
+      x.strokeStyle = '#ffff55'; x.lineWidth = 2; x.strokeRect(a * B + 1, b * B + 1, w * B - 2, h * B - 2);
+    }
+  });
+  Object.entries(md.labels).forEach(([t, [lx, ly]]) => {
+    x.fillStyle = '#000'; x.fillRect(lx * B, ly * B, 14, 14);
+    x.fillStyle = '#fff'; x.font = '10px "Press Start 2P", monospace'; x.textBaseline = 'top'; x.fillText(t, lx * B + 2, ly * B + 3);
+  });
+}
+
+/* =========================================================
+   FASE 2: QUADRETTATURA
+   ========================================================= */
+function gridMarkup(){
+  return `
+    <div class="frame">
+      <div class="cols lbl-hidden" id="colLbl">${L.map(l => `<span>${l}</span>`).join('')}</div>
+      <div class="rows lbl-hidden" id="rowLbl">${[1,2,3,4,5,6].map(n => `<span>${n}</span>`).join('')}</div>
+      <div class="area" id="area"></div>
+    </div>`;
+}
+const SHADOWS = [
+  'inset 3px 3px 0 rgba(255,255,255,.22), inset -3px -3px 0 rgba(0,0,0,.3)',
+  'inset 4px 4px 0 rgba(0,0,0,.38), inset -2px -2px 0 rgba(255,255,255,.08)',
+  'inset 7px 7px 0 rgba(0,0,0,.45), inset -2px -2px 0 rgba(255,255,255,.06)',
+  'inset 10px 10px 0 rgba(0,0,0,.55)'
+];
+function paintCell(b, d){
+  b.style.setProperty('--img', `url(${tex16(layerTex(d))})`);
+  b.style.setProperty('--sh', SHADOWS[d]);
+}
+function buildCells(onClick){
+  const area = $('area'); area.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'cell';
+    b.dataset.c = c; b.dataset.r = r; b.setAttribute('aria-label', 'Quadretto ' + coord(c, r));
+    paintCell(b, 0);
+    b.addEventListener('click', () => onClick(c, r, b));
+    area.appendChild(b);
+  }
+}
+const cellEl = (c, r) => document.querySelector(`.cell[data-c="${c}"][data-r="${r}"]`);
+let quadTasks = [];
+function phaseQuadretti(){
+  S.phase = 'quadretti';
+  view.innerHTML = `<div class="dig"><div>${gridMarkup()}</div>
+    <div class="side panel"><h2>La quadrettatura</h2>
+    <p class="hint">Con lo spago dividiamo il terreno in quadretti. Così sapremo sempre dove abbiamo trovato ogni oggetto.</p></div></div>`;
+  quadTasks = [];
+  buildCells(quadClick);
+  const area = $('area'); let set = 0;
+  ['tl','tr','bl','br'].forEach(p => {
+    const peg = document.createElement('button'); peg.type = 'button'; peg.className = 'peg ' + p;
+    peg.setAttribute('aria-label', 'Picchetto da piantare');
+    peg.onclick = () => {
+      if (peg.classList.contains('set')) return;
+      peg.classList.add('set'); sfx.dig(); set++;
+      if (set === 4) stringGrid();
+      else say('muhammad', `Picchetto piantato! Ne mancano ${4 - set}.`);
+    };
+    area.appendChild(peg);
+  });
+  talk([['muhammad', 'Piantiamo 4 picchetti agli angoli del terreno. Clicca sui quadratini di legno che lampeggiano!']]);
+}
+function stringGrid(){
+  say('muhammad', 'Ora tendiamo lo spago tra i picchetti...');
+  setTimeout(() => {
+    if (!S || S.phase !== 'quadretti') return;
+    $('area').classList.add('strung'); $('colLbl').classList.remove('lbl-hidden'); $('rowLbl').classList.remove('lbl-hidden');
+    sfx.ok();
+    const tasks = progress.tut ? [[1 + rnd(6), rnd(6)]] : [[2, 3], [5, 1]];
+    quadTasks = tasks.slice();
+    const first = coord(tasks[0][0], tasks[0][1]);
+    talk([['muhammad', 'Ecco i quadretti! Ognuno ha una lettera (la colonna) e un numero (la riga).'],
+          ['laura', `Proprio come a battaglia navale! Proviamo: clicca il quadretto ${first}.`]], () => { S.quadReady = true; });
+  }, reduce ? 0 : 900);
+}
+function quadClick(c, r, b){
+  if (!S.quadReady || !quadTasks.length) return;
+  const [tc, tr] = quadTasks[0];
+  if (c === tc && r === tr){
+    sfx.ok(); b.classList.add('target'); quadTasks.shift(); S.quadReady = false;
+    if (quadTasks.length){
+      const nx = coord(quadTasks[0][0], quadTasks[0][1]);
+      talk([['laura', `Bravo! Quello è ${coord(c, r)}. Adesso trova il quadretto ${nx}.`]], () => { S.quadReady = true; });
+    } else {
+      progress.tut = true; saveProgress();
+      talk([['laura', `Perfetto, ${coord(c, r)}! Sei pronto per lo scavo vero e proprio.`]], phaseScavo);
+    }
+  } else {
+    sfx.bad(); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 300);
+    say('laura', `Quello è ${coord(c, r)}. Cerca prima la lettera in alto, poi il numero a sinistra: ${coord(tc, tr)}.`);
+  }
+}
+
+/* =========================================================
+   FASE 3: LO SCAVO (simulazione)
+   ========================================================= */
+const HOME = { paul:[1.2, 5], laura:[3.4, 5], muhammad:[5.6, 5] };
+let actors = {}, busyCells = new Set();
+function phaseScavo(){
+  S.phase = 'scavo';
+  const m = S.mission, t0 = m.targets[0], t1 = m.targets[1];
+  view.innerHTML = `<div class="dig">
+    <div>${gridMarkup()}
+      <div class="legend panel"><h2>Gli strati</h2>
+        ${m.layers.map((l, i) => `<div><i style="background-image:url(${tex16(l.tex)})"></i>Strato ${i + 1} · ${l.short}${i === 0 ? ' (il più recente)' : i === 2 ? ' (il più antico)' : ''}</div>`).join('')}
+        <div><i style="background-image:url(${tex16('deep')})"></i>Quadretto finito</div>
+      </div>
+    </div>
+    <div class="side panel"><h2>La squadra</h2><div class="cards" id="cards"></div>
+      <p class="howto">Scegli un archeologo (o premi 1, 2, 3), poi clicca un quadretto: andrà lì a scavare. Possono lavorare tutti e tre insieme!</p></div>
+  </div>`;
+  $('area').classList.add('strung'); $('colLbl').classList.remove('lbl-hidden'); $('rowLbl').classList.remove('lbl-hidden');
+  buildCells(digClick);
+  makeActors();
+  renderGrid(); renderCards();
+  talk([
+    ['laura', 'Eccoci! Si scava in modo stratigrafico: prima lo strato 1, il più recente, poi piano piano si scende.'],
+    ['laura', 'Scegli uno di noi e clicca un quadretto: andremo lì e scaveremo con la pala, uno strato alla volta.'],
+    ['muhammad', 'Se troviamo un oggetto, fermi tutti! Prima lo puliamo col pennello e compiliamo la scheda. Uno strato scavato non torna più!'],
+    ['paul', `Ognuno di noi ha 6 colpi di pala al giorno e un aiuto speciale: Laura ha il fiuto per ${t0.short}, Muhammad per ${t1.short}. Al lavoro!`]
+  ]);
+}
+function makeActors(){
+  const layer = document.createElement('div'); layer.className = 'actors'; layer.id = 'actors';
+  $('area').appendChild(layer);
+  actors = {}; busyCells = new Set();
+  TEAM.forEach(t => {
+    const el = document.createElement('div'); el.className = 'actor';
+    const bub = document.createElement('div'); bub.className = 'bubble'; bub.hidden = true;
+    const img = document.createElement('img'); img.className = 'sp'; img.alt = t.name; img.src = FRAMES[t.id].idle;
+    const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = t.name;
+    el.append(bub, img, tag); layer.appendChild(el);
+    actors[t.id] = { id:t.id, x:HOME[t.id][0], y:HOME[t.id][1], face:1, el, img, bub, busy:false, bubT:null };
+    placeActor(actors[t.id]);
+  });
+}
+function resetActors(){
+  TEAM.forEach(t => { const a = actors[t.id]; if (!a) return; a.x = HOME[t.id][0]; a.y = HOME[t.id][1]; a.face = 1; a.busy = false; setFrame(a, 'idle'); placeActor(a); });
+  busyCells = new Set();
+}
+function placeActor(a){
+  a.el.style.left = (a.x * 12.5) + '%';
+  a.el.style.top = ((a.y + 1) * 100 / 6) + '%';
+  a.el.style.zIndex = 10 + Math.round(a.y * 10);
+  a.img.style.transform = a.face < 0 ? 'scaleX(-1)' : '';
+  a.el.classList.toggle('sel', S.sel === a.id);
+}
+function renderSel(){ Object.values(actors).forEach(placeActor); }
+function setFrame(a, f){ a.img.src = FRAMES[a.id][f]; }
+function bubble(a, text, ms){
+  a.bub.textContent = text; a.bub.hidden = false; clearTimeout(a.bubT);
+  a.bub.classList.toggle('edge-l', a.x < 2); a.bub.classList.toggle('edge-r', a.x > 5.5);
+  a.bubT = setTimeout(() => { a.bub.hidden = true; }, ms || 1600);
+}
+function walkTo(a, tx, ty, done){
+  const speed = 2.6; let last = performance.now(), ft = 0, step = false;
+  if (Math.abs(tx - a.x) > .05) a.face = tx > a.x ? 1 : -1;
+  const game = S;
+  function tick(now){
+    if (S !== game || S.phase !== 'scavo') return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const dx = tx - a.x, dy = ty - a.y, dist = Math.hypot(dx, dy), mv = speed * dt;
+    if (dist <= mv || reduce){ a.x = tx; a.y = ty; setFrame(a, 'idle'); placeActor(a); done(); return; }
+    a.x += dx / dist * mv; a.y += dy / dist * mv;
+    ft += dt; if (ft > .13){ ft = 0; step = !step; setFrame(a, step ? 'walk' : 'idle'); }
+    placeActor(a); requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+function dirt(c, r, color){
+  const layer = $('actors'); if (!layer || reduce) return;
+  for (let i = 0; i < 6; i++){
+    const d = document.createElement('i'); d.className = 'dirt';
+    d.style.left = ((c + .3 + Math.random() * .4) * 12.5) + '%';
+    d.style.top = ((r + .4 + Math.random() * .3) * 100 / 6) + '%';
+    d.style.background = color;
+    d.style.setProperty('--dx', (Math.random() * 36 - 18) + 'px');
+    d.style.setProperty('--dy', (-12 - Math.random() * 22) + 'px');
+    layer.appendChild(d); setTimeout(() => d.remove(), 650);
+  }
+}
+function digAnim(a, c, r, done){
+  const strokes = reduce ? 1 : 5; let i = 0; const game = S;
+  const iv = setInterval(() => {
+    if (S !== game || S.phase !== 'scavo'){ clearInterval(iv); return; }
+    const down = i % 2 === 1;
+    setFrame(a, down ? 'dig2' : 'dig1');
+    if (down){ const pal = PAL[layerTex(S.depth[c][r])] || PAL.dirt; dirt(c, r, pal[1]); tone(120 + rnd(40), .05, 0, 'triangle'); }
+    i++;
+    if (i >= strokes * 2){ clearInterval(iv); setFrame(a, 'idle'); done(); }
+  }, 210);
+}
+function renderGrid(){
+  const m = S.mission;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++){
+    const b = cellEl(c, r), d = S.depth[c][r];
+    paintCell(b, d);
+    [...b.querySelectorAll('img, .flag')].forEach(n => n.remove());
+    b.setAttribute('aria-label', 'Quadretto ' + coord(c, r) + (d < 3 ? ', strato ' + (d + 1) + ', ' + m.layers[d].short : ', scavo finito'));
+    const p = S.pendings.find(x => x.col === c && x.row === r);
+    if (p){ b.appendChild(itemImg(p.type, 'pending')); b.setAttribute('aria-label', 'Reperto da pulire e documentare in ' + coord(c, r)); }
+    if (S.finds.some(f => f.documented && isTarget(f.type) && f.col === c && f.row === r)){
+      const fl = document.createElement('span'); fl.className = 'flag'; b.appendChild(fl);
+    }
+    const hinted = S.hints.some(h => (h.t === 'zone' && Math.abs(h.c - c) <= 1 && Math.abs(h.r - r) <= 1) || (h.t === 'col' && h.c === c) || (h.t === 'row' && h.r === r));
+    b.classList.toggle('hint-on', hinted);
+    b.classList.toggle('digging', busyCells.has(c + ',' + r));
+  }
+}
+function selectActor(id){
+  if (!teamOf(id)) return;
+  S.sel = id; sfx.blip(); renderCards(); renderSel();
+  const a = actors[id], g = teamOf(id).g;
+  if (a) bubble(a, a.busy ? 'Sto scavando!' : S.energy[id] <= 0 ? 'Sono stanc' + g + '...' : 'Pront' + g + '!', 1100);
+}
+function abilityName(id){
+  const m = S.mission;
+  return id === 'paul' ? 'Leggi le fonti' : id === 'laura' ? 'Fiuto per ' + m.targets[0].short : 'Fiuto per ' + m.targets[1].short;
+}
+function renderCards(){
+  const box = $('cards'); if (!box) return; box.innerHTML = '';
+  TEAM.forEach(t => {
+    const a = actors[t.id];
+    const status = a && a.busy ? 'sta scavando…' : S.energy[t.id] <= 0 ? 'stanc' + t.g + ' per oggi' : 'pront' + t.g;
+    const card = document.createElement('div'); card.className = 'card' + (S.sel === t.id ? ' sel' : '');
+    card.setAttribute('role', 'button'); card.tabIndex = 0;
+    card.setAttribute('aria-label', `Scegli ${t.name}, ${status}, colpi rimasti ${S.energy[t.id]}`);
+    card.appendChild(charCanvas(t.id, 3));
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="nm">${t.name}</div><div class="fr">${status}</div>
+      <div class="pips">${Array.from({length:6}, (_, i) => `<span class="${i < S.energy[t.id] ? '' : 'off'}"></span>`).join('')}</div>`;
+    const ab = document.createElement('button'); ab.type = 'button'; ab.textContent = abilityName(t.id);
+    ab.title = t.id === 'paul' ? 'Mostra una zona dove c’è un reperto' : t.id === 'laura' ? 'Mostra una colonna' : 'Mostra una riga';
+    ab.disabled = !!S.used[t.id];
+    ab.onclick = e => { e.stopPropagation(); useAbility(t.id); };
+    info.appendChild(ab); card.appendChild(info);
+    card.onclick = () => selectActor(t.id);
+    card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); selectActor(t.id); } };
+    box.appendChild(card);
+  });
+}
+document.addEventListener('keydown', e => {
+  if (!S || S.phase !== 'scavo' || document.querySelector('.modal') || e.target.tagName === 'INPUT') return;
+  const map = { '1':'paul', '2':'laura', '3':'muhammad' };
+  if (map[e.key]) selectActor(map[e.key]);
+});
+function useAbility(id){
+  if (S.used[id]) return;
+  const a = actors[id], m = S.mission;
+  if (id === 'paul'){
+    const left = S.finds.filter(f => isTarget(f.type) && !f.found);
+    if (!left.length){ say('paul', 'Le fonti non hanno più segreti: abbiamo già trovato tutto!'); return; }
+    const f = left[rnd(left.length)]; S.hints.push({ t:'zone', c:f.col, r:f.row });
+    say('paul', 'Ho riletto le fonti: qui intorno è nascosto un reperto importante! Guarda i quadretti azzurri.');
+  } else {
+    const t = id === 'laura' ? m.targets[0] : m.targets[1];
+    const left = S.finds.filter(f => f.type === t.type && !f.found);
+    if (!left.length){ say(id, `Abbiamo già trovato ${t.all}!`); return; }
+    const f = left[rnd(left.length)];
+    if (id === 'laura'){ S.hints.push({ t:'col', c:f.col }); say('laura', `Io me ne intendo: ${t.one} si nasconde nella colonna ${L[f.col]}!`); }
+    else { S.hints.push({ t:'row', r:f.row }); say('muhammad', `Secondo i miei appunti c’è ${t.one} nella riga ${f.row + 1}!`); }
+  }
+  if (a) bubble(a, 'Ho un’idea!', 1400);
+  S.used[id] = true; sfx.ok(); renderGrid(); renderCards();
+}
+const totalEnergy = () => S.energy.paul + S.energy.laura + S.energy.muhammad;
+const anyBusy = () => Object.values(actors).some(a => a.busy);
+function digClick(c, r){
+  const pend = S.pendings.find(p => p.col === c && p.row === r);
+  if (pend){ openScheda(pend); return; }
+  if (S.pendings.length){
+    const p = S.pendings[0]; sfx.bad();
+    say('muhammad', `Fermi tutti! Prima puliamo e documentiamo il reperto nel quadretto ${coord(p.col, p.row)}. Cliccaci sopra.`); return;
+  }
+  if (busyCells.has(c + ',' + r)){ sfx.bad(); say(S.sel, `Qualcuno sta già scavando nel quadretto ${coord(c, r)}!`); return; }
+  if (S.depth[c][r] >= 3){ sfx.bad(); say('laura', `Il quadretto ${coord(c, r)} è finito: abbiamo già scavato tutti i suoi strati.`); return; }
+  let a = actors[S.sel];
+  if (a.busy || S.energy[a.id] <= 0){
+    const other = TEAM.map(t => actors[t.id]).find(x => !x.busy && S.energy[x.id] > 0);
+    if (!other){
+      sfx.bad();
+      say(S.sel, totalEnergy() === 0 ? 'Abbiamo finito i colpi di oggi: aspettiamo che finisca l’ultimo scavo.' : 'Siamo tutti al lavoro! Aspetta che qualcuno finisca.');
+      return;
+    }
+    a = other; S.sel = other.id;
+  }
+  S.energy[a.id]--; a.busy = true; busyCells.add(c + ',' + r); sfx.blip();
+  bubble(a, 'Vado in ' + coord(c, r) + '!', 1300);
+  renderCards(); renderSel(); renderGrid();
+  const sx = c > 0 ? c - .55 : c + .55;
+  walkTo(a, sx, r, () => {
+    a.face = sx < c ? 1 : -1; placeActor(a);
+    digAnim(a, c, r, () => finishDig(a, c, r));
+  });
+}
+function finishDig(a, c, r){
+  busyCells.delete(c + ',' + r); a.busy = false; S.dugTotal++; S.dugToday++;
+  const d = S.depth[c][r], m = S.mission;
+  const f = S.finds.find(x => !x.found && x.col === c && x.row === r && x.layer === d + 1);
+  if (f){
+    f.found = true; S.pendings.push(f); sfx.find();
+    bubble(a, 'Ho trovato qualcosa!', 2600);
+    S.hints = S.hints.filter(h => !(isTarget(f.type) && h.t === 'zone' && Math.abs(h.c - c) <= 1 && Math.abs(h.r - r) <= 1));
+    say(a.id, isTarget(f.type)
+      ? `Ehi! Nel quadretto ${coord(c, r)} spunta qualcosa... ${m.msg.foundT} Clicca il reperto: prima lo puliamo col pennello.`
+      : `Nel quadretto ${coord(c, r)} c’è un oggetto! Clicca il reperto per pulirlo e fare la scheda.`);
+  } else {
+    S.depth[c][r] = d + 1;
+    const nd = d + 1;
+    if (nd < 3 && !S.reached[nd + 1]){
+      S.reached[nd + 1] = true;
+      say(a.id, nd + 1 === 2 ? m.msg.reach2 : m.msg.reach3);
+    }
+    const lines = nd === 3 ? ['Quadretto finito!', 'Niente qui.'] : ['Strato tolto!', 'Solo terra...', 'Scendiamo piano piano', 'Niente, per ora'];
+    bubble(a, lines[rnd(lines.length)], 1500);
+  }
+  if (S.energy[a.id] <= 0 && S.sel === a.id){ const o = TEAM.find(t => S.energy[t.id] > 0 && !actors[t.id].busy); if (o) S.sel = o.id; }
+  renderGrid(); renderCards(); renderSel(); maybeEndDay();
+}
+function maybeEndDay(){
+  const ready = () => S && S.phase === 'scavo' && totalEnergy() === 0 && !S.pendings.length && !anyBusy() && !document.querySelector('.modal');
+  if (ready()) setTimeout(() => { if (ready()) endDay(); }, 900);
+}
+
+/* =========================================================
+   SCHEDA DEL REPERTO
+   ========================================================= */
+function openModal(html){
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="sheet panel" role="dialog" aria-modal="true">${html}</div>`;
+  $('screen').appendChild(m); return m;
+}
+function openScheda(f){
+  const it = ITEMS[f.type], mi = S.mission;
+  const n = S.finds.filter(x => x.documented).length + 1;
+  const right = coord(f.col, f.row);
+  const opts = new Set([right]);
+  while (opts.size < 3){
+    const c = Math.max(0, Math.min(7, f.col + rnd(5) - 2)), r = Math.max(0, Math.min(5, f.row + rnd(5) - 2));
+    opts.add(coord(c, r));
+  }
+  const coordOpts = [...opts].sort(() => Math.random() - .5);
+  const groundUrl = tex16(mi.layers[f.layer - 1].tex);
+  const m = openModal(`
+    <h2>Scheda reperto n. ${n}</h2>
+    <div id="brushStep">
+      <p>Il reperto è ancora sporco di terra. Passa il pennello: trascina il dito o il mouse sopra la terra.</p>
+      <div class="brush"><canvas id="bItem" width="160" height="160"></canvas><canvas id="bDirt" width="160" height="160" aria-label="Terra da spazzolare"></canvas></div>
+      <div class="bar"><span id="bProg"></span></div>
+      <div class="act" style="justify-content:center"><button type="button" id="bBtn">Usa il pennello</button></div>
+    </div>
+    <div id="docStep" hidden>
+      <div class="photo">
+        <div class="frame-img blank" id="ph"></div>
+        <div><p><b>${it.name}</b></p><p>Ora che è pulito, rispondi alle domande e scatta la foto.</p></div>
+      </div>
+      <p class="fact"><b>Lo sapevi?</b> ${it.fact}</p>
+      <div class="q">In quale quadretto l’hai trovato?</div>
+      <div class="opts" id="q1">${coordOpts.map(o => `<button type="button" data-v="${o}">${o}</button>`).join('')}</div>
+      <div class="q">In quale strato?</div>
+      <div class="opts" id="q2">${mi.layers.map((l, i) => `<button type="button" data-v="${i + 1}">Strato ${i + 1} · ${l.short}</button>`).join('')}</div>
+      <div class="fb" id="fb"></div>
+      <div class="act"><button type="button" id="shot" disabled>Scatta la foto</button><button type="button" id="save" disabled>Salva la scheda</button></div>
+    </div>`);
+  // --- pennello ---
+  const bi = m.querySelector('#bItem').getContext('2d');
+  bi.imageSmoothingEnabled = false;
+  const gimg = new Image(); gimg.src = groundUrl;
+  const paintItem = () => { bi.drawImage(gimg, 0, 0, 160, 160); bi.drawImage(spriteCanvas(it.rows, it.colors, 12), 20, 20); };
+  if (gimg.complete) paintItem(); else gimg.onload = paintItem;
+  const dc = m.querySelector('#bDirt'), dx = dc.getContext('2d');
+  const pal = PAL[mi.layers[f.layer - 1].tex] || PAL.dirt;
+  for (let j = 0; j < 160; j += 8) for (let i = 0; i < 160; i += 8){ dx.fillStyle = pal[rnd(pal.length)]; dx.fillRect(i, j, 8, 8); }
+  dx.fillStyle = 'rgba(0,0,0,.28)'; dx.fillRect(0, 0, 160, 160);
+  let cleaned = false, lastSnd = 0;
+  const prog = m.querySelector('#bProg');
+  function measure(){
+    const d = dx.getImageData(0, 0, 160, 160).data; let clear = 0, tot = 0;
+    for (let y = 12; y < 148; y += 4) for (let x = 12; x < 148; x += 4){ tot++; if (d[(y * 160 + x) * 4 + 3] < 100) clear++; }
+    const pct = clear / tot; prog.style.width = Math.min(100, pct / .65 * 100) + '%';
+    if (pct >= .65 && !cleaned){
+      cleaned = true; dx.clearRect(0, 0, 160, 160); sfx.ok();
+      setTimeout(() => { m.querySelector('#brushStep').hidden = true; m.querySelector('#docStep').hidden = false; m.querySelector('#q1 button').focus(); }, reduce ? 0 : 600);
+    }
+  }
+  function brushAt(x, y){
+    dx.save(); dx.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 4; i++) dx.fillRect(Math.round((x - 12 + rnd(24)) / 4) * 4, Math.round((y - 12 + rnd(24)) / 4) * 4, 12, 12);
+    dx.restore();
+    const now = performance.now(); if (now - lastSnd > 90){ lastSnd = now; tone(1400 + rnd(900), .02, 0, 'triangle'); }
+  }
+  let down = false;
+  const pos = e => { const r = dc.getBoundingClientRect(); return [(e.clientX - r.left) * 160 / r.width, (e.clientY - r.top) * 160 / r.height]; };
+  dc.addEventListener('pointerdown', e => { if (cleaned) return; down = true; dc.setPointerCapture(e.pointerId); brushAt(...pos(e)); measure(); });
+  dc.addEventListener('pointermove', e => { if (!down || cleaned) return; brushAt(...pos(e)); measure(); });
+  dc.addEventListener('pointerup', () => { down = false; });
+  m.querySelector('#bBtn').onclick = () => { if (cleaned) return; for (let i = 0; i < 16; i++) brushAt(12 + rnd(136), 12 + rnd(136)); measure(); };
+  // --- documentazione ---
+  const ph = m.querySelector('#ph');
+  const cv = spriteCanvas(it.rows, it.colors, 8); cv.style.backgroundImage = `url(${groundUrl})`; ph.appendChild(cv);
+  const fb = m.querySelector('#fb'); let ok1 = false, ok2 = false;
+  const check = () => { m.querySelector('#shot').disabled = !(ok1 && ok2); };
+  m.querySelectorAll('#q1 button').forEach(b => b.onclick = () => {
+    if (ok1) return;
+    if (b.dataset.v === right){ ok1 = true; b.classList.add('ok'); sfx.ok(); fb.textContent = 'Giusto!'; }
+    else { b.classList.add('no'); sfx.bad(); fb.textContent = 'Guarda la lettera in alto e il numero a sinistra del reperto che lampeggia.'; }
+    check();
+  });
+  m.querySelectorAll('#q2 button').forEach(b => b.onclick = () => {
+    if (ok2) return;
+    if (+b.dataset.v === f.layer){
+      ok2 = true; b.classList.add('ok'); sfx.ok();
+      fb.textContent = f.layer === 3 ? mi.msg.fb3 : f.layer === 2 ? mi.msg.fb2 : 'Giusto! È nello strato più in alto, quindi è un oggetto di oggi.';
+    } else { b.classList.add('no'); sfx.bad(); fb.textContent = 'Guarda il blocco del quadretto e confrontalo con la legenda degli strati.'; }
+    check();
+  });
+  m.querySelector('#shot').onclick = () => {
+    sfx.photo(); ph.classList.remove('blank');
+    const fl = document.createElement('div'); fl.className = 'flash'; m.appendChild(fl); setTimeout(() => fl.remove(), 600);
+    m.querySelector('#shot').disabled = true; m.querySelector('#save').disabled = false; m.querySelector('#save').focus();
+  };
+  m.querySelector('#save').onclick = () => { m.remove(); saveFind(f); };
+  m.querySelector('#bBtn').focus();
+}
+function saveFind(f){
+  const mi = S.mission;
+  f.documented = true; f.day = S.day; S.pendings = S.pendings.filter(x => x !== f); S.todayFinds.push(f);
+  S.depth[f.col][f.row] = Math.min(3, S.depth[f.col][f.row] + 1);
+  sfx.ok(); renderHud(); renderGrid(); renderCards();
+  const mu = actors.muhammad; if (mu) bubble(mu, 'Click! Scheda salvata', 1500);
+  const missing = mi.targets.map(t => ({ t, left:leftOf(t.type) })).filter(x => x.left > 0);
+  if (!missing.length){ setTimeout(finish, 500); return; }
+  if (isTarget(f.type)){
+    const list = missing.map(x => `${x.left} ${x.left === 1 ? x.t.sing : x.t.plur}`).join(' e ');
+    say('muhammad', `Reperto documentato! Ci mancano ancora: ${list}.`);
+  } else {
+    say('paul', f.layer === 1 ? 'Non è antico: è un oggetto di oggi! Ma lo documentiamo lo stesso, ogni oggetto racconta qualcosa.' : mi.msg.decoy2);
+  }
+  maybeEndDay();
+}
+
+/* =========================================================
+   GIORNALE DI SCAVO
+   ========================================================= */
+function diaryHtml(dayNum, dug, finds){
+  const items = finds.length
+    ? `<ul>${finds.map(f => `<li>${ITEMS[f.type].name} nel quadretto ${coord(f.col, f.row)}, strato ${f.layer}.</li>`).join('')}</ul>
+       <div class="sketches">${finds.map(f => `<img class="sp slot" src="${IMG[f.type]}" alt="${ITEMS[f.type].name}">`).join('')}</div>`
+    : `<p>Oggi niente reperti, ma ora conosciamo meglio il terreno.</p>`;
+  return `<div class="diary"><p>Giorno ${dayNum}. Oggi la squadra ha tolto ${dug} strati di terra.</p>${items}</div>`;
+}
+function endDay(){
+  if (!S || S.phase !== 'scavo' || document.querySelector('.modal')) return;
+  S.allDays.push({ day:S.day, dug:S.dugToday, finds:S.todayFinds.slice() });
+  const m = openModal(`<h2>Giornale di scavo</h2>
+    <p>${playerName ? 'Il diario di ' + escapeHtml(playerName) : 'Il diario della squadra'}: tutto ciò che è successo oggi.</p>
+    ${diaryHtml(S.day, S.dugToday, S.todayFinds)}
+    <div class="act"><button type="button" id="sleep">Inizia il giorno ${S.day + 1}</button></div>`);
+  sfx.blip();
+  m.querySelector('#sleep').focus();
+  m.querySelector('#sleep').onclick = () => {
+    m.remove(); S.day++; S.energy = { paul:6, laura:6, muhammad:6 }; S.used = {}; S.hints = [];
+    S.dugToday = 0; S.todayFinds = []; resetActors(); renderHud(); renderGrid(); renderCards(); renderSel();
+    say('laura', `Buongiorno! È il giorno ${S.day}. Abbiamo di nuovo tutti i colpi di pala e i nostri aiuti speciali.`);
+  };
+}
+
+/* =========================================================
+   FINE MISSIONE
+   ========================================================= */
+function finish(){
+  const mi = S.mission;
+  S.phase = 'fine';
+  S.allDays.push({ day:S.day, dug:S.dugToday, finds:S.todayFinds.slice() });
+  sfx.win();
+  const stars = S.day <= 3 ? 3 : S.day <= 4 ? 2 : 1;
+  const best = Math.max(stars, progress.stars[mi.id] || 0);
+  progress.stars[mi.id] = best; saveProgress();
+  const others = S.finds.filter(f => f.documented && !isTarget(f.type)).length;
+  const got = mi.targets.map(t => `${t.n} ${t.n === 1 ? t.sing : t.plur}`).join(' e ');
+  const next = MISSIONS.find(x => x.num === mi.num + 1);
+  const m = openModal(`<h2>Missione compiuta!</h2>
+    <p>Fantastico, ${escapeHtml(displayName())}! Hai trovato ${got} in ${S.day} giorn${S.day === 1 ? 'o' : 'i'} di scavo.</p>
+    <div class="stars" aria-label="${stars} stelle su 3">${starsHtml(stars)}</div>
+    <p>Strati scavati: ${S.dugTotal}. Altri oggetti documentati: ${others}.</p>
+    <p class="fact"><b>Cosa hai imparato:</b> ${mi.msg.end}</p>
+    <h2 style="margin-top:14px">Giornale di scavo</h2>
+    ${S.allDays.map(d => diaryHtml(d.day, d.dug, d.finds)).join('')}
+    <div class="act">
+      <button type="button" id="again">Rigioca</button>
+      <button type="button" id="toMenu">Tutte le missioni</button>
+      ${next ? `<button type="button" class="green" id="next">Missione ${next.num} ›</button>` : ''}
+    </div>`);
+  m.querySelector('#again').onclick = () => { m.remove(); startMission(mi); };
+  m.querySelector('#toMenu').onclick = () => { m.remove(); missionMenu(); };
+  if (next) m.querySelector('#next').onclick = () => { m.remove(); startMission(next); };
+  (m.querySelector('#next') || m.querySelector('#toMenu')).focus();
+  say('paul', `Thank you, ${displayName()}! Hai scavato strato dopo strato e documentato tutto: sei un vero detective del passato!`);
+}
+
+showLoading();
+})();
+</script>
+</body>
+</html>
